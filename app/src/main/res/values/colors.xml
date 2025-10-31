@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores Base -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Colores Principales - App de Chat -->
+    <color name="primary">#6C63FF</color> <!-- Púrpura moderno -->
+    <color name="primary_dark">#5849E6</color>
+    <color name="primary_light">#8B85FF</color>
+    <color name="primary_variant">#4F45CC</color>
+    
+    <!-- Colores Secundarios -->
+    <color name="secondary">#00D9FF</color> <!-- Cyan/Aqua para mensajes -->
+    <color name="secondary_dark">#00B8D4</color>
+    <color name="secondary_light">#62EFFF</color>
+    
+    <!-- Colores de Acento -->
+    <color name="accent">#FF6584</color> <!-- Rosa para notificaciones -->
+    <color name="accent_light">#FF94AB</color>
+    
+    <!-- Colores de Fondo -->
+    <color name="background">#F5F7FA</color>
+    <color name="background_dark">#1E1E2E</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_dark">#2D2D3D</color>
+    
+    <!-- Colores de Texto -->
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    
+    <!-- Colores de Estado -->
+    <color name="success">#10B981</color>
+    <color name="error">#EF4444</color>
+    <color name="warning">#F59E0B</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- Colores para Inputs -->
+    <color name="input_background">#F9FAFB</color>
+    <color name="input_border">#E5E7EB</color>
+    <color name="input_focused">#6C63FF</color>
+    
+    <!-- Colores de Burbuja de Chat -->
+    <color name="bubble_sent">#6C63FF</color> <!-- Mensaje enviado -->
+    <color name="bubble_received">#FFFFFF</color> <!-- Mensaje recibido -->
+    <color name="bubble_received_border">#E5E7EB</color>
+    
+    <!-- Estados Online/Offline -->
+    <color name="online">#10B981</color>
+    <color name="offline">#9CA3AF</color>
+    
+    <!-- Transparencias -->
+    <color name="overlay">#80000000</color>
+    <color name="divider">#E5E7EB</color>
+</resources>

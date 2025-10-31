@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">ChatConnect</string>
+    
+    <!-- Login Screen -->
+    <string name="login_title">Bienvenido de vuelta</string>
+    <string name="login_subtitle">Inicia sesión para continuar</string>
+    <string name="email_hint">Correo electrónico</string>
+    <string name="password_hint">Contraseña</string>
+    <string name="remember_session">Mantener sesión iniciada</string>
+    <string name="login_button">Iniciar Sesión</string>
+    <string name="forgot_password">¿Olvidaste tu contraseña?</string>
+    <string name="no_account">¿No tienes cuenta?</string>
+    <string name="register_now">Regístrate aquí</string>
+    
+    <!-- Register Screen -->
+    <string name="register_title">Crear cuenta</string>
+    <string name="register_subtitle">Únete a la comunidad</string>
+    <string name="username_hint">Nombre de usuario</string>
+    <string name="confirm_password_hint">Confirmar contraseña</string>
+    <string name="register_button">Registrarse</string>
+    <string name="already_have_account">¿Ya tienes cuenta?</string>
+    <string name="login_now">Inicia sesión aquí</string>
+    
+    <!-- Validaciones -->
+    <string name="error_empty_email">Ingresa tu correo electrónico</string>
+    <string name="error_invalid_email">Correo electrónico inválido</string>
+    <string name="error_empty_password">Ingresa tu contraseña</string>
+    <string name="error_short_password">La contraseña debe tener al menos 8 caracteres</string>
+    <string name="error_empty_username">Ingresa tu nombre de usuario</string>
+    <string name="error_short_username">El nombre de usuario debe tener al menos 3 caracteres</string>
+    <string name="error_empty_confirm_password">Confirma tu contraseña</string>
+    <string name="error_passwords_dont_match">Las contraseñas no coinciden</string>
+    <string name="error_invalid_password_format">La contraseña debe contener mayúsculas, minúsculas y números</string>
+    
+    <!-- Mensajes -->
+    <string name="logging_in">Iniciando sesión...</string>
+    <string name="registering">Registrando...</string>
+    <string name="login_success">¡Bienvenido!</string>
+    <string name="register_success">¡Cuenta creada exitosamente!</string>
+    
+    <!-- Content Descriptions -->
+    <string name="cd_show_password">Mostrar contraseña</string>
+    <string name="cd_hide_password">Ocultar contraseña</string>
+</resources>
