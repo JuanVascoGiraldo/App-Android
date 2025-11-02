@@ -130,7 +130,7 @@ public class HttpClient {
             
             // Agregar token de autenticación si existe
             if (authToken != null && !authToken.isEmpty()) {
-                connection.setRequestProperty("Authorization", "Bearer " + authToken);
+                connection.setRequestProperty("Authorization", authToken);
             }
             
             // Convertir el objeto request a JSON usando GSON
@@ -206,6 +206,82 @@ public class HttpClient {
                 return connection.getResponseMessage();
             } catch (IOException ioException) {
                 return "Error: " + e.getMessage();
+            }
+        }
+    }
+    
+    /**
+     * Upload de archivo con multipart/form-data
+     * 
+     * @param urlString URL del endpoint
+     * @param fileBytes Bytes del archivo a subir
+     * @param fileName Nombre del archivo
+     * @param fieldName Nombre del campo (ej: "image")
+     * @param responseClass Clase del objeto de respuesta
+     * @param authToken Token de autenticación
+     * @param <T> Tipo de la respuesta
+     * @return Objeto deserializado de la respuesta JSON
+     * @throws IOException Si hay error de red o conexión
+     */
+    public <T> T uploadFile(String urlString, byte[] fileBytes, String fileName, 
+                            String fieldName, Class<T> responseClass, String authToken) throws IOException {
+        HttpURLConnection connection = null;
+        String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+        String LINE_FEED = "\r\n";
+        
+        try {
+            URL url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(CONNECT_TIMEOUT);
+            connection.setReadTimeout(READ_TIMEOUT);
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            
+            // Headers para multipart/form-data
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            connection.setRequestProperty("Accept", "application/json");
+            
+            // Agregar token de autenticación
+            if (authToken != null && !authToken.isEmpty()) {
+                connection.setRequestProperty("Authorization", authToken);
+            }
+            
+            // Escribir el cuerpo multipart
+            OutputStream outputStream = connection.getOutputStream();
+            
+            // Inicio del campo de archivo
+            outputStream.write(("--" + boundary + LINE_FEED).getBytes());
+            outputStream.write(("Content-Disposition: form-data; name=\"" + fieldName + 
+                              "\"; filename=\"" + fileName + "\"" + LINE_FEED).getBytes());
+            outputStream.write(("Content-Type: image/*" + LINE_FEED).getBytes());
+            outputStream.write(LINE_FEED.getBytes());
+            
+            // Escribir bytes del archivo
+            outputStream.write(fileBytes);
+            outputStream.write(LINE_FEED.getBytes());
+            
+            // Fin del multipart
+            outputStream.write(("--" + boundary + "--" + LINE_FEED).getBytes());
+            outputStream.flush();
+            outputStream.close();
+            
+            // Verificar código de respuesta
+            int responseCode = connection.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                String errorJson = readErrorResponse(connection);
+                throw new ApiException(responseCode, errorJson);
+            }
+            
+            // Leer la respuesta
+            String jsonResponse = readResponse(connection);
+            
+            // Parsear JSON a objeto
+            return gson.fromJson(jsonResponse, responseClass);
+            
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
             }
         }
     }

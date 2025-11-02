@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    android:background="?attr/colorSurface"
+    tools:context=".VerifyEmailActivity">
+
+    <!-- Logo o Icono -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/iconEmail"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_marginTop="48dp"
+        android:src="@android:drawable/ic_dialog_email"
+        android:tint="?attr/colorPrimary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Título -->
+    <TextView
+        android:id="@+id/titleTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Verifica tu correo"
+        android:textAlignment="center"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/iconEmail" />
+
+    <!-- Mensaje -->
+    <TextView
+        android:id="@+id/messageTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Hemos enviado un código de verificación de 6 dígitos a tu correo electrónico"
+        android:textAlignment="center"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/titleTextView" />
+
+    <!-- Contenedor de las 6 casillas -->
+    <LinearLayout
+        android:id="@+id/codeInputContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/messageTextView">
+
+        <!-- Casilla 1 -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeDigit1"
+            android:layout_width="50dp"
+            android:layout_height="60dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/code_input_background"
+            android:gravity="center"
+            android:inputType="number"
+            android:maxLength="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Casilla 2 -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeDigit2"
+            android:layout_width="50dp"
+            android:layout_height="60dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/code_input_background"
+            android:gravity="center"
+            android:inputType="number"
+            android:maxLength="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Casilla 3 -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeDigit3"
+            android:layout_width="50dp"
+            android:layout_height="60dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/code_input_background"
+            android:gravity="center"
+            android:inputType="number"
+            android:maxLength="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Casilla 4 -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeDigit4"
+            android:layout_width="50dp"
+            android:layout_height="60dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/code_input_background"
+            android:gravity="center"
+            android:inputType="number"
+            android:maxLength="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Casilla 5 -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeDigit5"
+            android:layout_width="50dp"
+            android:layout_height="60dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/code_input_background"
+            android:gravity="center"
+            android:inputType="number"
+            android:maxLength="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Casilla 6 -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/codeDigit6"
+            android:layout_width="50dp"
+            android:layout_height="60dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/code_input_background"
+            android:gravity="center"
+            android:inputType="number"
+            android:maxLength="1"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Botón Verificar -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/verifyButton"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="32dp"
+        android:text="Verificar código"
+        android:textSize="16sp"
+        app:cornerRadius="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/codeInputContainer" />
+
+    <!-- Texto "¿No recibiste el código?" -->
+    <TextView
+        android:id="@+id/resendLabelTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="¿No recibiste el código?"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/verifyButton" />
+
+    <!-- Botón Reenviar código con countdown -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/resendButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Reenviar código"
+        android:textSize="14sp"
+        style="@style/Widget.Material3.Button.TextButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/resendLabelTextView" />
+
+    <!-- ProgressBar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -70,6 +70,21 @@ public class ApiHttpClientUser {
         void onError(Exception error);
     }
     
+    public interface VerifyEmailCallback {
+        void onSuccess(VerifyEmailResponse response);
+        void onError(Exception error);
+    }
+    
+    public interface ResendVerificationCallback {
+        void onSuccess(ResendVerificationResponse response);
+        void onError(Exception error);
+    }
+    
+    public interface UploadProfileImageCallback {
+        void onSuccess(UploadProfileImageResponse response);
+        void onError(Exception error);
+    }
+    
     // ==================== ENDPOINTS ====================
     
     /**
@@ -223,7 +238,7 @@ public class ApiHttpClientUser {
     public void validateEmailCode(String authToken, EmailVerificationCode code, EmailCodeValidationCallback callback) {
         new Thread(() -> {
             try {
-                String url = ApiConfig.BASE_URL + "api/email/verify/validate";
+                String url = ApiConfig.BASE_URL + "api/users/email/verify/validate";
                 EmailVerificationValidationResponse response = httpClient.post(url, code, EmailVerificationValidationResponse.class, authToken);
                 
                 mainHandler.post(() -> callback.onSuccess(response));
@@ -296,6 +311,98 @@ public class ApiHttpClientUser {
                 });
             } catch (IOException e) {
                 Log.e(TAG, "Error de red al obtener perfil", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showNetworkError(context, e);
+                    callback.onError(e);
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Verificar email con código de 6 dígitos
+     * POST /api/verify-email
+     */
+    public void verifyEmail(String token, VerifyEmailRequest request, VerifyEmailCallback callback) {
+        new Thread(() -> {
+            try {
+                String url = ApiConfig.BASE_URL + "api/users/email/verify/validate";
+                VerifyEmailResponse response = httpClient.post(url, request, VerifyEmailResponse.class, token);
+                
+                mainHandler.post(() -> callback.onSuccess(response));
+                
+            } catch (ApiException e) {
+                Log.e(TAG, "Error API en verificación de email", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showErrorToast(context, e.getErrorJson());
+                    callback.onError(e);
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Error de red en verificación de email", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showNetworkError(context, e);
+                    callback.onError(e);
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Reenviar código de verificación
+     * POST /api/resend-verification
+     */
+    public void resendVerification(String token, ResendVerificationCallback callback) {
+        new Thread(() -> {
+            try {
+                String url = ApiConfig.BASE_URL + "api/users/email/verify";
+                // POST sin body, solo con token
+                ResendVerificationResponse response = httpClient.post(url, null, ResendVerificationResponse.class, token);
+                
+                mainHandler.post(() -> callback.onSuccess(response));
+                
+            } catch (ApiException e) {
+                Log.e(TAG, "Error API en reenvío de código", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showErrorToast(context, e.getErrorJson());
+                    callback.onError(e);
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Error de red en reenvío de código", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showNetworkError(context, e);
+                    callback.onError(e);
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Subir imagen de perfil
+     * POST /api/users/upload/profile/image
+     */
+    public void uploadProfileImage(String token, byte[] imageBytes, String fileName, UploadProfileImageCallback callback) {
+        new Thread(() -> {
+            try {
+                String url = ApiConfig.BASE_URL + "api/users/upload/profile/image";
+                UploadProfileImageResponse response = httpClient.uploadFile(
+                    url, 
+                    imageBytes, 
+                    fileName, 
+                    "image",  // nombre del campo según el endpoint
+                    UploadProfileImageResponse.class, 
+                    token
+                );
+                
+                mainHandler.post(() -> callback.onSuccess(response));
+                
+            } catch (ApiException e) {
+                Log.e(TAG, "Error API en upload de imagen", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showErrorToast(context, e.getErrorJson());
+                    callback.onError(e);
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Error de red en upload de imagen", e);
                 mainHandler.post(() -> {
                     ErrorHandler.showNetworkError(context, e);
                     callback.onError(e);

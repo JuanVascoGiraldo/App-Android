@@ -1,12 +1,25 @@
 package com.example.androidchatproject;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -14,6 +27,10 @@ import androidx.core.view.WindowInsetsCompat;
 import com.example.androidchatproject.model.user.*;
 import com.example.androidchatproject.network.ApiHttpClientUser;
 import com.example.androidchatproject.session.SessionManager;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 
 /**
  * MainActivity - Pantalla principal después del login
@@ -21,8 +38,23 @@ import com.example.androidchatproject.session.SessionManager;
 public class MainActivity extends AppCompatActivity {
     
     private static final String TAG = "MainActivity";
+    private static final int MAX_IMAGE_SIZE = 1024 * 1024; // 1MB
+    
     private ApiHttpClientUser apiHttpClient;
     private SessionManager sessionManager;
+    private String currentToken;
+    private boolean isComingFromLogin = false;
+    
+    // UI Components
+    private ImageView profileImageView;
+    private TextView welcomeTextView;
+    private FloatingActionButton uploadImageButton;
+    
+    // Image picker launcher
+    private ActivityResultLauncher<Intent> imagePickerLauncher;
+    
+    // Permission launcher
+    private ActivityResultLauncher<String> requestPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
         // 2. Si no viene en Intent, cargar desde SessionManager (SQLite o memoria)
         if (token == null || token.isEmpty()) {
             Log.d(TAG, "No token in Intent, loading from SessionManager...");
+            isComingFromLogin = false; // Viene desde sesión guardada
             
             if (!sessionManager.hasSession()) {
                 Log.d(TAG, "No session found, navigating to Login");
@@ -51,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Token loaded from SessionManager");
         } else {
             Log.d(TAG, "Token received from Intent, using it directly");
+            isComingFromLogin = true; // Viene desde login/register reciente
             // El token ya está guardado en SessionManager por LoginActivity/RegisterActivity
             // No necesitamos guardarlo de nuevo aquí para no sobrescribir la preferencia de "remember me"
         }
@@ -63,8 +97,22 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
         
+        // Store token for later use
+        currentToken = token;
+        
+        // Initialize UI components
+        profileImageView = findViewById(R.id.profileImageView);
+        welcomeTextView = findViewById(R.id.welcomeTextView);
+        uploadImageButton = findViewById(R.id.uploadImageButton);
+        
         // Initialize API client
         apiHttpClient = new ApiHttpClientUser(this);
+        
+        // Setup image picker
+        setupImagePicker();
+        
+        // Setup upload button - verificar permisos primero
+        uploadImageButton.setOnClickListener(v -> checkPermissionAndOpenPicker());
         
         // Validate the session token
         Log.d(TAG, "Validating session token...");
@@ -88,11 +136,23 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "  Email verified: " + response.isEmailVerified());
                 Log.d(TAG, "  Profile image: " + response.getProfileImageUrl());
                 
+                // Verificar si el email está verificado
+                if (!response.isEmailVerified()) {
+                    Log.d(TAG, "Email not verified, redirecting to verification screen");
+                    navigateToVerifyEmail(token);
+                    return;
+                }
+                
+                // Email verificado: mostrar contenido normal
+                // Mostrar "Hola, {username}"
+                String welcomeMessage = "Hola, " + response.getUsername();
+                welcomeTextView.setText(welcomeMessage);
+                
                 Toast.makeText(MainActivity.this, 
                         "Bienvenido, " + response.getUsername() + "!", 
                         Toast.LENGTH_SHORT).show();
                 
-                // Descargar imagen de perfil si existe
+                // Descargar y mostrar imagen de perfil
                 downloadProfileImageIfAvailable(response);
             }
 
@@ -108,9 +168,11 @@ public class MainActivity extends AppCompatActivity {
      * Sistema híbrido: Carga imagen con cache inteligente
      * 
      * Estrategia:
-     * 1. Si cache es válido (< 7 días) → usar cache
-     * 2. Si cache expiró → descargar nueva versión
-     * 3. Si descarga falla → usar cache antiguo como fallback
+     * - Si viene desde login → SIEMPRE descargar imagen fresca
+     * - Si viene desde sesión guardada:
+     *   1. Si cache es válido (< 7 días) → usar cache
+     *   2. Si cache expiró → descargar nueva versión
+     *   3. Si descarga falla → usar cache antiguo como fallback
      */
     private void downloadProfileImageIfAvailable(UserProfileResponse profile) {
         String imageUrl = profile.getProfileImageUrl();
@@ -122,9 +184,43 @@ public class MainActivity extends AppCompatActivity {
         }
         
         String username = profile.getUsername();
-        Log.d(TAG, "Loading profile image with cache strategy for: " + username);
+        String fileName = com.example.androidchatproject.utils.ImageDownloader
+                .generateProfileImageFileName(username);
         
-        // Usar sistema híbrido con TTL de 7 días
+        // Si viene desde login, SIEMPRE descargar imagen fresca
+        if (isComingFromLogin) {
+            Log.d(TAG, "🔄 Coming from login - forcing fresh image download for: " + username);
+            
+            com.example.androidchatproject.utils.ImageDownloader.downloadAndSaveImage(
+                this,
+                imageUrl,
+                fileName,
+                new com.example.androidchatproject.utils.ImageDownloader.DownloadCallback() {
+                    @Override
+                    public void onSuccess(java.io.File imageFile) {
+                        Log.d(TAG, "✅ Fresh profile image downloaded after login");
+                        Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
+                        Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
+                        
+                        // Cargar la imagen en el ImageView circular
+                        loadImageIntoView(imageFile);
+                    }
+
+                    @Override
+                    public void onError(Exception error) {
+                        Log.e(TAG, "❌ Error downloading fresh profile image", error);
+                        Toast.makeText(MainActivity.this, 
+                                "No se pudo cargar la imagen de perfil", 
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
+            );
+            return; // Salir del método, no usar caché
+        }
+        
+        // Si NO viene desde login, usar sistema híbrido con caché
+        Log.d(TAG, "📦 Using cache strategy for profile image: " + username);
+        
         com.example.androidchatproject.utils.ImageDownloader.loadProfileImageWithCache(
             this,
             imageUrl,
@@ -133,31 +229,23 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onSuccess(java.io.File imageFile) {
                     long age = com.example.androidchatproject.utils.ImageDownloader
-                            .getImageAgeInDays(MainActivity.this, 
-                                com.example.androidchatproject.utils.ImageDownloader
-                                    .generateProfileImageFileName(username));
+                            .getImageAgeInDays(MainActivity.this, fileName);
                     
                     if (age == 0) {
                         // Recién descargada
                         Log.d(TAG, "✅ Profile image downloaded and cached");
                         Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
                         Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
-                        
-                        Toast.makeText(MainActivity.this, 
-                                "Imagen de perfil descargada", 
-                                Toast.LENGTH_SHORT).show();
                     } else {
                         // Cargada desde cache
                         Log.d(TAG, "✅ Profile image loaded from cache");
                         Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
                         Log.d(TAG, "  Age: " + age + " days");
                         Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
-                        
-                        // No mostrar toast para cache, solo log
                     }
                     
-                    // Aquí Coria cargar la imagen en un ImageView
-                    // loadImageIntoView(imageFile);
+                    // Cargar la imagen en el ImageView circular
+                    loadImageIntoView(imageFile);
                 }
 
                 @Override
@@ -166,9 +254,7 @@ public class MainActivity extends AppCompatActivity {
                     
                     // Solo mostrar toast si es un error real (no cuando hay fallback)
                     if (!com.example.androidchatproject.utils.ImageDownloader
-                            .imageExists(MainActivity.this, 
-                                com.example.androidchatproject.utils.ImageDownloader
-                                    .generateProfileImageFileName(username))) {
+                            .imageExists(MainActivity.this, fileName)) {
                         Toast.makeText(MainActivity.this, 
                                 "No se pudo cargar la imagen de perfil", 
                                 Toast.LENGTH_SHORT).show();
@@ -176,6 +262,330 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         );
+    }
+    
+    /**
+     * Carga la imagen en el ImageView (ya es circular por el layout)
+     */
+    private void loadImageIntoView(java.io.File imageFile) {
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+            if (bitmap != null) {
+                // El ImageView ya tiene el estilo circular aplicado desde el XML
+                profileImageView.setImageBitmap(bitmap);
+                Log.d(TAG, "✅ Image displayed in circular ImageView");
+            } else {
+                Log.e(TAG, "❌ Failed to decode bitmap from file");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error loading image into view", e);
+        }
+    }
+    
+    // ==================== IMAGE UPLOAD ====================
+    
+    /**
+     * Configurar image picker y permisos
+     */
+    private void setupImagePicker() {
+        // Configurar launcher para seleccionar imagen
+        imagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri imageUri = result.getData().getData();
+                    if (imageUri != null) {
+                        handleImageSelection(imageUri);
+                    }
+                }
+            }
+        );
+        
+        // Configurar launcher para solicitar permisos
+        requestPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    Log.d(TAG, "✅ Permiso de galería concedido");
+                    openImagePicker();
+                } else {
+                    Log.w(TAG, "❌ Permiso de galería denegado");
+                    showPermissionDeniedDialog();
+                }
+            }
+        );
+    }
+    
+    /**
+     * Verificar permisos y abrir selector de imágenes
+     */
+    private void checkPermissionAndOpenPicker() {
+        // Determinar qué permiso usar según versión de Android
+        String permission;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ (API 33+)
+            permission = Manifest.permission.READ_MEDIA_IMAGES;
+        } else {
+            // Android 12 y anteriores
+            permission = Manifest.permission.READ_EXTERNAL_STORAGE;
+        }
+        
+        // Verificar si ya tiene el permiso
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            Log.d(TAG, "✅ Permiso ya concedido, abriendo selector");
+            openImagePicker();
+        } else {
+            // Verificar si debe mostrar explicación
+            if (shouldShowRequestPermissionRationale(permission)) {
+                Log.d(TAG, "ℹ️ Mostrando explicación de permiso");
+                showPermissionRationaleDialog(permission);
+            } else {
+                Log.d(TAG, "🔒 Solicitando permiso de galería");
+                requestPermissionLauncher.launch(permission);
+            }
+        }
+    }
+    
+    /**
+     * Mostrar diálogo explicando por qué se necesita el permiso
+     */
+    private void showPermissionRationaleDialog(String permission) {
+        new AlertDialog.Builder(this)
+            .setTitle("Permiso necesario")
+            .setMessage("Para subir una imagen de perfil, necesitamos acceso a tu galería de fotos.")
+            .setPositiveButton("Dar permiso", (dialog, which) -> {
+                requestPermissionLauncher.launch(permission);
+            })
+            .setNegativeButton("Cancelar", (dialog, which) -> {
+                Toast.makeText(this, "No se puede subir imagen sin permiso", Toast.LENGTH_SHORT).show();
+            })
+            .show();
+    }
+    
+    /**
+     * Mostrar diálogo cuando el permiso es denegado
+     */
+    private void showPermissionDeniedDialog() {
+        new AlertDialog.Builder(this)
+            .setTitle("Permiso denegado")
+            .setMessage("Sin acceso a la galería no puedes subir una imagen de perfil. Puedes habilitar el permiso desde la configuración de la aplicación.")
+            .setPositiveButton("Entendido", (dialog, which) -> {
+                dialog.dismiss();
+            })
+            .setNegativeButton("Ir a configuración", (dialog, which) -> {
+                // Abrir configuración de la app
+                Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            })
+            .show();
+    }
+    
+    /**
+     * Abrir selector de imágenes
+     */
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        intent.setType("image/*");
+        imagePickerLauncher.launch(intent);
+    }
+    
+    /**
+     * Manejar imagen seleccionada
+     */
+    private void handleImageSelection(Uri imageUri) {
+        try {
+            // Leer imagen como bytes
+            InputStream inputStream = getContentResolver().openInputStream(imageUri);
+            if (inputStream == null) {
+                Toast.makeText(this, "Error al leer la imagen", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Convertir a bitmap
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+            inputStream.close();
+            
+            if (bitmap == null) {
+                Toast.makeText(this, "Error al decodificar la imagen", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Comprimir imagen si es muy grande
+            byte[] imageBytes = compressImage(bitmap);
+            
+            // Validar tamaño
+            if (imageBytes.length > MAX_IMAGE_SIZE) {
+                Toast.makeText(this, "La imagen es muy grande (máx 1MB)", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Subir imagen
+            uploadProfileImage(imageBytes);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error handling image selection", e);
+            Toast.makeText(this, "Error al procesar la imagen", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Comprimir imagen a JPEG
+     */
+    private byte[] compressImage(Bitmap bitmap) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        
+        // Redimensionar si es muy grande
+        int maxDimension = 1024;
+        if (bitmap.getWidth() > maxDimension || bitmap.getHeight() > maxDimension) {
+            float scale = Math.min(
+                (float) maxDimension / bitmap.getWidth(),
+                (float) maxDimension / bitmap.getHeight()
+            );
+            int newWidth = Math.round(bitmap.getWidth() * scale);
+            int newHeight = Math.round(bitmap.getHeight() * scale);
+            bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
+        }
+        
+        // Comprimir a JPEG con calidad 80
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream);
+        
+        return outputStream.toByteArray();
+    }
+    
+    /**
+     * Subir imagen de perfil al servidor
+     */
+    private void uploadProfileImage(byte[] imageBytes) {
+        // Mostrar loading
+        uploadImageButton.setEnabled(false);
+        Toast.makeText(this, "Subiendo imagen...", Toast.LENGTH_SHORT).show();
+        
+        String fileName = "profile_" + System.currentTimeMillis() + ".jpg";
+        
+        apiHttpClient.uploadProfileImage(currentToken, imageBytes, fileName, 
+            new ApiHttpClientUser.UploadProfileImageCallback() {
+                @Override
+                public void onSuccess(UploadProfileImageResponse response) {
+                    if (response.isValid()) {
+                        Log.d(TAG, "✅ Profile image uploaded successfully");
+                        Toast.makeText(MainActivity.this, 
+                                "Imagen actualizada, descargando...", 
+                                Toast.LENGTH_SHORT).show();
+                        
+                        // Recargar perfil para obtener nueva imagen URL
+                        refreshProfileAfterUpload();
+                    } else {
+                        uploadImageButton.setEnabled(true);
+                        Log.e(TAG, "❌ Image upload failed: invalid response");
+                        Toast.makeText(MainActivity.this, 
+                                "Error: imagen inválida", 
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
+                
+                @Override
+                public void onError(Exception error) {
+                    uploadImageButton.setEnabled(true);
+                    Log.e(TAG, "❌ Error uploading profile image", error);
+                    // El error ya se muestra en Toast por ErrorHandler
+                }
+            }
+        );
+    }
+    
+    /**
+     * Refrescar perfil después de upload exitoso
+     * Obtiene nueva URL de imagen y la descarga automáticamente
+     */
+    private void refreshProfileAfterUpload() {
+        Log.d(TAG, "Refreshing profile after image upload...");
+        
+        apiHttpClient.getUserProfile(currentToken, new ApiHttpClientUser.UserProfileCallback() {
+            @Override
+            public void onSuccess(UserProfileResponse response) {
+                Log.d(TAG, "✅ Profile refreshed, new image URL: " + response.getProfileImageUrl());
+                
+                String imageUrl = response.getProfileImageUrl();
+                String username = response.getUsername();
+                
+                // Verificar si hay nueva URL de imagen
+                if (imageUrl == null || imageUrl.isEmpty()) {
+                    uploadImageButton.setEnabled(true);
+                    Log.w(TAG, "⚠️ No image URL in refreshed profile");
+                    Toast.makeText(MainActivity.this, 
+                            "Imagen subida pero URL no disponible", 
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                // Forzar descarga de la nueva imagen (ignorar caché)
+                Log.d(TAG, "Forcing download of new profile image...");
+                forceDownloadNewImage(imageUrl, username);
+            }
+            
+            @Override
+            public void onError(Exception error) {
+                uploadImageButton.setEnabled(true);
+                Log.e(TAG, "❌ Error refreshing profile after upload", error);
+                Toast.makeText(MainActivity.this, 
+                        "Imagen subida pero no se pudo actualizar", 
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    
+    /**
+     * Forzar descarga de nueva imagen (sin caché)
+     */
+    private void forceDownloadNewImage(String imageUrl, String username) {
+        // Descargar directamente sin usar caché (nueva imagen)
+        String fileName = com.example.androidchatproject.utils.ImageDownloader
+                .generateProfileImageFileName(username);
+        
+        com.example.androidchatproject.utils.ImageDownloader.downloadAndSaveImage(
+            this,
+            imageUrl,
+            fileName,
+            new com.example.androidchatproject.utils.ImageDownloader.DownloadCallback() {
+                @Override
+                public void onSuccess(java.io.File imageFile) {
+                    uploadImageButton.setEnabled(true);
+                    
+                    Log.d(TAG, "✅ New profile image downloaded and saved");
+                    Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
+                    Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
+                    
+                    Toast.makeText(MainActivity.this, 
+                            "¡Imagen actualizada correctamente!", 
+                            Toast.LENGTH_SHORT).show();
+                    
+                    // Mostrar la nueva imagen en el ImageView
+                    loadImageIntoView(imageFile);
+                }
+                
+                @Override
+                public void onError(Exception error) {
+                    uploadImageButton.setEnabled(true);
+                    
+                    Log.e(TAG, "❌ Error downloading new profile image", error);
+                    Toast.makeText(MainActivity.this, 
+                            "No se pudo descargar la imagen actualizada", 
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+        );
+    }
+    
+    /**
+     * Navegar a pantalla de verificación de email
+     */
+    private void navigateToVerifyEmail(String token) {
+        Intent intent = new Intent(this, VerifyEmailActivity.class);
+        intent.putExtra("TOKEN", token);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
     
     /**
