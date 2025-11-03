@@ -114,6 +114,9 @@ public class MainActivity extends AppCompatActivity {
         // Setup upload button - verificar permisos primero
         uploadImageButton.setOnClickListener(v -> checkPermissionAndOpenPicker());
         
+        // Setup logout button
+        findViewById(R.id.btnLogout).setOnClickListener(v -> performLogout());
+        
         // Validate the session token
         Log.d(TAG, "Validating session token...");
         validateSessionManual(token);
@@ -766,6 +769,48 @@ public class MainActivity extends AppCompatActivity {
             public void onError(Exception error) {
                 // El error ya se muestra automáticamente en un Toast por ErrorHandler
                 Log.e(TAG, "Email code validation error (Manual HTTP)", error);
+            }
+        });
+    }
+    
+    /**
+     * Cerrar sesión
+     */
+    private void performLogout() {
+        if (currentToken == null || currentToken.isEmpty()) {
+            Log.w(TAG, "⚠️ No hay token válido, redirigiendo a login");
+            navigateToLogin();
+            return;
+        }
+        
+        Log.d(TAG, "🔄 Iniciando logout...");
+        Toast.makeText(this, "Cerrando sesión...", Toast.LENGTH_SHORT).show();
+        
+        apiHttpClient.logout(currentToken, new ApiHttpClientUser.LogoutCallback() {
+            @Override
+            public void onSuccess(LogoutResponse response) {
+                Log.d(TAG, "✅ Logout exitoso en el servidor");
+                
+                // Limpiar sesión local
+                sessionManager.clearSession();
+                
+                Toast.makeText(MainActivity.this, "Sesión cerrada correctamente", Toast.LENGTH_SHORT).show();
+                
+                // Redirigir al login
+                navigateToLogin();
+            }
+            
+            @Override
+            public void onError(Exception error) {
+                Log.e(TAG, "❌ Error al cerrar sesión en el servidor", error);
+                
+                // Aunque falle el API, limpiar sesión local de todos modos
+                sessionManager.clearSession();
+                
+                Toast.makeText(MainActivity.this, "Sesión cerrada localmente", Toast.LENGTH_SHORT).show();
+                
+                // Redirigir al login
+                navigateToLogin();
             }
         });
     }

@@ -85,6 +85,9 @@ public class VerifyEmailActivity extends AppCompatActivity {
         verifyButton = findViewById(R.id.verifyButton);
         resendButton = findViewById(R.id.resendButton);
         progressBar = findViewById(R.id.progressBar);
+        
+        // Setup logout button
+        findViewById(R.id.btnLogout).setOnClickListener(v -> performLogout());
     }
     
     /**
@@ -320,6 +323,48 @@ public class VerifyEmailActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+    
+    /**
+     * Cerrar sesión
+     */
+    private void performLogout() {
+        if (token == null || token.isEmpty()) {
+            Log.w(TAG, "⚠️ No hay token válido, redirigiendo a login");
+            navigateToLogin();
+            return;
+        }
+        
+        Log.d(TAG, "🔄 Iniciando logout...");
+        Toast.makeText(this, "Cerrando sesión...", Toast.LENGTH_SHORT).show();
+        
+        apiHttpClient.logout(token, new ApiHttpClientUser.LogoutCallback() {
+            @Override
+            public void onSuccess(LogoutResponse response) {
+                Log.d(TAG, "✅ Logout exitoso en el servidor");
+                
+                // Limpiar sesión local
+                sessionManager.clearSession();
+                
+                Toast.makeText(VerifyEmailActivity.this, "Sesión cerrada correctamente", Toast.LENGTH_SHORT).show();
+                
+                // Redirigir al login
+                navigateToLogin();
+            }
+            
+            @Override
+            public void onError(Exception error) {
+                Log.e(TAG, "❌ Error al cerrar sesión en el servidor", error);
+                
+                // Aunque falle el API, limpiar sesión local de todos modos
+                sessionManager.clearSession();
+                
+                Toast.makeText(VerifyEmailActivity.this, "Sesión cerrada localmente", Toast.LENGTH_SHORT).show();
+                
+                // Redirigir al login
+                navigateToLogin();
+            }
+        });
     }
     
     @Override

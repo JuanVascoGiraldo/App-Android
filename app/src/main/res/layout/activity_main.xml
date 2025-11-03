@@ -8,6 +8,37 @@
     android:padding="24dp"
     tools:context=".MainActivity">
 
+    <!-- Logout Button (Top-right corner) -->
+    <LinearLayout
+        android:id="@+id/btnLogout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/logout"
+            android:scaleType="centerInside"
+            android:contentDescription="Icono cerrar sesión" />
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cerrar sesión"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnBackground"
+            android:layout_marginStart="4dp" />
+        
+    </LinearLayout>
+
     <!-- Profile Image Container -->
     <FrameLayout
         android:id="@+id/profileImageContainer"
@@ -24,7 +55,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:src="@drawable/ic_launcher_foreground"
+            android:src="@drawable/user_default"
             app:shapeAppearanceOverlay="@style/CircleImageView"
             app:strokeColor="?attr/colorPrimary"
             app:strokeWidth="3dp" />

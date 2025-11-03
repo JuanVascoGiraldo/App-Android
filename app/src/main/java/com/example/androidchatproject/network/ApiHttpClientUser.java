@@ -147,12 +147,12 @@ public class ApiHttpClientUser {
     
     /**
      * Logout de usuario
-     * POST /api/users/logout
+     * POST /api/users//logout
      */
     public void logout(String authToken, LogoutCallback callback) {
         new Thread(() -> {
             try {
-                String url = ApiConfig.BASE_URL + "api/users/logout";
+                String url = ApiConfig.BASE_URL + "api/users//logout";
                 // POST sin body, solo con token
                 LogoutResponse response = httpClient.post(url, new Object(), LogoutResponse.class, authToken);
                 

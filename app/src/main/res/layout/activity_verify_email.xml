@@ -8,6 +8,37 @@
     android:background="?attr/colorSurface"
     tools:context=".VerifyEmailActivity">
 
+    <!-- Logout Button (Top-right corner) -->
+    <LinearLayout
+        android:id="@+id/btnLogout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/logout"
+            android:scaleType="centerInside"
+            android:contentDescription="Icono cerrar sesión" />
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cerrar sesión"
+            android:textSize="14sp"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginStart="4dp" />
+        
+    </LinearLayout>
+
     <!-- Logo o Icono -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/iconEmail"
@@ -52,11 +83,11 @@
     <!-- Contenedor de las 6 casillas -->
     <LinearLayout
         android:id="@+id/codeInputContainer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="349dp"
+        android:layout_height="65dp"
         android:layout_marginTop="32dp"
-        android:orientation="horizontal"
         android:gravity="center"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/messageTextView">

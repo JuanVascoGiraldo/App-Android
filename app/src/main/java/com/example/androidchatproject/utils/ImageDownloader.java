@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory;
 import android.os.Environment;
 import android.util.Log;
 
+import com.example.androidchatproject.helper.ImageCacheHelper;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -56,9 +58,14 @@ public class ImageDownloader {
                     throw new IOException("No se pudo descargar la imagen");
                 }
                 
-                // Guardar en disco
-                File savedFile = saveImageToStorage(context, bitmap, fileName);
+                // Guardar en caché usando helper
+                boolean saved = ImageCacheHelper.saveImageToCache(context, fileName, bitmap);
                 
+                if (!saved) {
+                    throw new IOException("Error al guardar imagen en caché");
+                }
+                
+                File savedFile = ImageCacheHelper.getImageFile(context, fileName);
                 Log.d(TAG, "Imagen guardada exitosamente en: " + savedFile.getAbsolutePath());
                 
                 // Callback en el hilo principal
@@ -125,75 +132,24 @@ public class ImageDownloader {
         }
     }
     
-    /**
-     * Guarda un Bitmap en el almacenamiento interno de la app
-     * Ruta: /storage/emulated/0/Android/data/{package}/files/MovilApp/
-     */
-    private static File saveImageToStorage(Context context, Bitmap bitmap, String fileName) throws IOException {
-        // Obtener directorio de archivos de la app (no requiere permisos especiales)
-        File appDir = context.getExternalFilesDir(null);
-        
-        if (appDir == null) {
-            throw new IOException("No se pudo acceder al directorio de archivos externos");
-        }
-        
-        // Crear carpeta MovilApp si no existe
-        File movilAppDir = new File(appDir, APP_FOLDER);
-        if (!movilAppDir.exists()) {
-            boolean created = movilAppDir.mkdirs();
-            if (!created) {
-                throw new IOException("No se pudo crear la carpeta " + APP_FOLDER);
-            }
-            Log.d(TAG, "Carpeta creada: " + movilAppDir.getAbsolutePath());
-        }
-        
-        // Crear archivo de imagen
-        File imageFile = new File(movilAppDir, fileName);
-        
-        // Guardar bitmap como JPEG
-        FileOutputStream outputStream = null;
-        try {
-            outputStream = new FileOutputStream(imageFile);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream);
-            outputStream.flush();
-            
-            Log.d(TAG, "Imagen guardada: " + imageFile.getAbsolutePath());
-            Log.d(TAG, "Tamaño: " + (imageFile.length() / 1024) + " KB");
-            
-            return imageFile;
-            
-        } finally {
-            if (outputStream != null) {
-                try {
-                    outputStream.close();
-                } catch (IOException e) {
-                    Log.e(TAG, "Error al cerrar FileOutputStream", e);
-                }
-            }
-        }
-    }
+    // Método saveImageToStorage removido - ahora se usa ImageCacheHelper.saveImageToCache()
     
     /**
      * Obtiene la ruta completa donde se guardan las imágenes
+     * @deprecated Use ImageCacheHelper.getImageDirectory() instead
      */
+    @Deprecated
     public static File getImageDirectory(Context context) {
-        File appDir = context.getExternalFilesDir(null);
-        if (appDir != null) {
-            return new File(appDir, APP_FOLDER);
-        }
-        return null;
+        return ImageCacheHelper.getImageDirectory(context);
     }
     
     /**
      * Verifica si una imagen ya existe en el almacenamiento
+     * @deprecated Use ImageCacheHelper.imageExistsInCache() instead
      */
+    @Deprecated
     public static boolean imageExists(Context context, String fileName) {
-        File imageDir = getImageDirectory(context);
-        if (imageDir != null) {
-            File imageFile = new File(imageDir, fileName);
-            return imageFile.exists();
-        }
-        return false;
+        return ImageCacheHelper.imageExistsInCache(context, fileName);
     }
     
     /**
@@ -204,76 +160,43 @@ public class ImageDownloader {
      * @param maxAgeInDays Edad máxima en días (ej: 7 para 7 días)
      * @return true si existe y es válida, false si no existe o está expirada
      */
+    /**
+     * @deprecated Use ImageCacheHelper.isCacheValid() instead
+     */
+    @Deprecated
     public static boolean isCacheValid(Context context, String fileName, int maxAgeInDays) {
-        File imageFile = getImageFile(context, fileName);
-        if (imageFile == null || !imageFile.exists()) {
-            return false;
-        }
-        
-        long lastModified = imageFile.lastModified();
-        long currentTime = System.currentTimeMillis();
-        long ageInMillis = currentTime - lastModified;
-        long ageInDays = ageInMillis / (1000 * 60 * 60 * 24);
-        
-        boolean isValid = ageInDays < maxAgeInDays;
-        
-        Log.d(TAG, "Cache validation for " + fileName + ":");
-        Log.d(TAG, "  Age: " + ageInDays + " days");
-        Log.d(TAG, "  Max age: " + maxAgeInDays + " days");
-        Log.d(TAG, "  Valid: " + isValid);
-        
-        return isValid;
+        return ImageCacheHelper.isCacheValid(context, fileName, maxAgeInDays);
     }
     
     /**
-     * Obtiene la edad en días de una imagen
+     * @deprecated Use ImageCacheHelper.getImageAgeInDays() instead
      */
+    @Deprecated
     public static long getImageAgeInDays(Context context, String fileName) {
-        File imageFile = getImageFile(context, fileName);
-        if (imageFile == null || !imageFile.exists()) {
-            return -1;
-        }
-        
-        long lastModified = imageFile.lastModified();
-        long currentTime = System.currentTimeMillis();
-        long ageInMillis = currentTime - lastModified;
-        return ageInMillis / (1000 * 60 * 60 * 24);
+        return ImageCacheHelper.getImageAgeInDays(context, fileName);
     }
     
     /**
      * Obtiene el archivo de imagen si existe
      */
     public static File getImageFile(Context context, String fileName) {
-        File imageDir = getImageDirectory(context);
-        if (imageDir != null) {
-            File imageFile = new File(imageDir, fileName);
-            if (imageFile.exists()) {
-                return imageFile;
-            }
-        }
-        return null;
+        return ImageCacheHelper.getImageFile(context, fileName);
     }
     
     /**
-     * Elimina una imagen del almacenamiento
+     * @deprecated Use ImageCacheHelper.deleteImageFromCache() instead
      */
+    @Deprecated
     public static boolean deleteImage(Context context, String fileName) {
-        File imageFile = getImageFile(context, fileName);
-        if (imageFile != null && imageFile.exists()) {
-            boolean deleted = imageFile.delete();
-            if (deleted) {
-                Log.d(TAG, "Imagen eliminada: " + fileName);
-            }
-            return deleted;
-        }
-        return false;
+        return ImageCacheHelper.deleteImageFromCache(context, fileName);
     }
     
     /**
-     * Genera un nombre de archivo único para la imagen de perfil
+     * @deprecated Use ImageCacheHelper.generateProfileImageFileName() instead
      */
+    @Deprecated
     public static String generateProfileImageFileName(String username) {
-        return "profile_" + username + ".jpg";
+        return ImageCacheHelper.generateProfileImageFileName(username);
     }
     
     /**
@@ -332,11 +255,16 @@ public class ImageDownloader {
                     }
                     
                     // Eliminar cache antiguo si existe
-                    deleteImage(context, fileName);
+                    ImageCacheHelper.deleteImageFromCache(context, fileName);
                     
-                    // Guardar nueva versión
-                    File savedFile = saveImageToStorage(context, bitmap, fileName);
+                    // Guardar nueva versión usando helper
+                    boolean saved = ImageCacheHelper.saveImageToCache(context, fileName, bitmap);
                     
+                    if (!saved) {
+                        throw new IOException("Error al guardar imagen en caché");
+                    }
+                    
+                    File savedFile = ImageCacheHelper.getImageFile(context, fileName);
                     Log.d(TAG, "New version downloaded and cached: " + savedFile.getAbsolutePath());
                     
                     // Callback en hilo principal

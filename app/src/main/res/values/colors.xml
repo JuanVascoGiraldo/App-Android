@@ -19,6 +19,9 @@
     <color name="accent">#FF6584</color> <!-- Rosa para notificaciones -->
     <color name="accent_light">#FF94AB</color>
     
+    <!-- Color de fondo del icono de la app -->
+    <color name="ic_launcher_background">#6C63FF</color> <!-- Mismo que primary -->
+    
     <!-- Colores de Fondo -->
     <color name="background">#F5F7FA</color>
     <color name="background_dark">#1E1E2E</color>
