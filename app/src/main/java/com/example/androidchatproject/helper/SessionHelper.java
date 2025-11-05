@@ -64,6 +64,6 @@ public class SessionHelper {
     public static void logout(Context context) {
         SessionManager sessionManager = new SessionManager(context);
         sessionManager.clearSession();
-        Log.d(TAG, "🚪 Sesión cerrada");
+        Log.d(TAG, "Sesión cerrada");
     }
 }

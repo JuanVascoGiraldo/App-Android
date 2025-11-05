@@ -58,7 +58,7 @@ public class ImageHelper {
             int newWidth = Math.round(bitmap.getWidth() * scale);
             int newHeight = Math.round(bitmap.getHeight() * scale);
             
-            Log.d(TAG, "📐 Resizing image:");
+            Log.d(TAG, "Resizing image:");
             Log.d(TAG, "  Original: " + bitmap.getWidth() + "x" + bitmap.getHeight());
             Log.d(TAG, "  New: " + newWidth + "x" + newHeight);
             Log.d(TAG, "  Scale: " + (scale * 100) + "%");
@@ -73,8 +73,8 @@ public class ImageHelper {
         byte[] result = outputStream.toByteArray();
         
         Log.d(TAG, "[SUCCESS] Image compressed:");
-        Log.d(TAG, "  Quality: " + quality + "%");
-        Log.d(TAG, "  Size: " + (result.length / 1024) + " KB");
+        Log.d(TAG, "Quality: " + quality + "%");
+        Log.d(TAG, "Size: " + (result.length / 1024) + " KB");
         
         return result;
     }
@@ -129,8 +129,8 @@ public class ImageHelper {
         
         byte[] result = outputStream.toByteArray();
         
-        Log.d(TAG, "[SUCCESS] Image compressed to PNG:");
-        Log.d(TAG, "  Size: " + (result.length / 1024) + " KB");
+        Log.d(TAG, "Image compressed to PNG:");
+        Log.d(TAG, " Size: " + (result.length / 1024) + " KB");
         
         return result;
     }

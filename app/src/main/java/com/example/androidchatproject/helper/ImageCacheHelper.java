@@ -115,7 +115,7 @@ public class ImageCacheHelper {
         File imageFile = getImageFile(context, fileName);
         
         if (!imageFile.exists()) {
-            Log.w(TAG, "⚠️ Imagen no existe en caché: " + fileName);
+            Log.w(TAG, "Imagen no existe en caché: " + fileName);
             return null;
         }
         
@@ -123,15 +123,15 @@ public class ImageCacheHelper {
             Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
             
             if (bitmap != null) {
-                Log.d(TAG, "✅ Imagen cargada desde caché: " + fileName);
+                Log.d(TAG, "Imagen cargada desde caché: " + fileName);
             } else {
-                Log.e(TAG, "❌ Error decodificando imagen: " + fileName);
+                Log.e(TAG, "Error decodificando imagen: " + fileName);
             }
             
             return bitmap;
             
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error cargando imagen desde caché: " + fileName, e);
+            Log.e(TAG, "Error cargando imagen desde caché: " + fileName, e);
             return null;
         }
     }
@@ -151,14 +151,14 @@ public class ImageCacheHelper {
                 is.close();
                 
                 if (defaultImage != null) {
-                    Log.d(TAG, "✅ Imagen por defecto cargada desde assets: " + DEFAULT_IMAGE);
+                    Log.d(TAG, "Imagen por defecto cargada desde assets: " + DEFAULT_IMAGE);
                     // Guardar en caché para próximas veces
                     saveImageToCache(context, DEFAULT_IMAGE, defaultImage);
                 } else {
-                    Log.d(TAG, "⚠️ No se pudo decodificar la imagen desde assets");
+                    Log.d(TAG, "No se pudo decodificar la imagen desde assets");
                 }
             } catch (IOException e) {
-                Log.d(TAG, "⚠️ No se encontró " + DEFAULT_IMAGE + " en assets: " + e.getMessage());
+                Log.d(TAG, "No se encontro " + DEFAULT_IMAGE + " en assets: " + e.getMessage());
             }
         }
         
@@ -175,15 +175,15 @@ public class ImageCacheHelper {
             boolean deleted = imageFile.delete();
             
             if (deleted) {
-                Log.d(TAG, "✅ Imagen eliminada de caché: " + fileName);
+                Log.d(TAG, "Imagen eliminada de caché: " + fileName);
             } else {
-                Log.e(TAG, "❌ Error eliminando imagen: " + fileName);
+                Log.e(TAG, "Error eliminando imagen: " + fileName);
             }
             
             return deleted;
         }
         
-        Log.w(TAG, "⚠️ Imagen no existe, no se puede eliminar: " + fileName);
+        Log.w(TAG, "Imagen no existe, no se puede eliminar: " + fileName);
         return false;
     }
     
@@ -221,7 +221,7 @@ public class ImageCacheHelper {
                 for (File file : files) {
                     file.delete();
                 }
-                Log.d(TAG, "🗑️ Caché limpiada: " + files.length + " archivos eliminados");
+                Log.d(TAG, "Caché limpiada: " + files.length + " archivos eliminados");
             }
         }
     }
@@ -243,7 +243,7 @@ public class ImageCacheHelper {
             }
         }
         
-        Log.d(TAG, "📊 Tamaño de caché: " + (totalSize / 1024) + " KB");
+        Log.d(TAG, "Tamaño de caché: " + (totalSize / 1024) + " KB");
         return totalSize;
     }
     
