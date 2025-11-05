@@ -439,9 +439,114 @@ public class ApiHttpClientUser {
         }).start();
     }
     
+    /**
+     * Enviar email de recuperación de contraseña
+     */
+    public void sendResetPasswordEmail(SendResetPasswordRequest request, SendResetPasswordCallback callback) {
+        new Thread(() -> {
+            try {
+                String url = ApiConfig.BASE_URL + "api/users/password/reset";
+                SendResetPasswordResponse response = httpClient.post(url, request, SendResetPasswordResponse.class, null);
+                
+                Log.d(TAG, "Password reset email sent to: " + request.getEmail());
+                
+                mainHandler.post(() -> callback.onSuccess(response));
+                
+            } catch (ApiException e) {
+                Log.e(TAG, "API Error sending password reset email", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showErrorToast(context, e.getErrorJson());
+                    callback.onError(e);
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Network error sending password reset email", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showNetworkError(context, e);
+                    callback.onError(e);
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Confirmar reset de contraseña con código
+     */
+    public void confirmResetPassword(ResetPasswordConfirmRequest request, ResetPasswordConfirmCallback callback) {
+        new Thread(() -> {
+            try {
+                String url = ApiConfig.BASE_URL + "api/users/password/reset/confirm";
+                ResetPasswordConfirmResponse response = httpClient.put(url, request, ResetPasswordConfirmResponse.class, null);
+                
+                Log.d(TAG, "Password reset confirmed successfully");
+                
+                mainHandler.post(() -> callback.onSuccess(response));
+                
+            } catch (ApiException e) {
+                Log.e(TAG, "API Error confirming password reset", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showErrorToast(context, e.getErrorJson());
+                    callback.onError(e);
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Network error confirming password reset", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showNetworkError(context, e);
+                    callback.onError(e);
+                });
+            }
+        }).start();
+    }
+    
+    /**
+     * Obtener lista de todos los usuarios
+     */
+    public void getAllUsers(String token, UsersListCallback callback) {
+        new Thread(() -> {
+            try {
+                String url = ApiConfig.BASE_URL + "api/users/all/";
+                UsersListResponse response = httpClient.get(url, UsersListResponse.class, token);
+                
+                Log.d(TAG, "Users list retrieved successfully");
+                
+                mainHandler.post(() -> callback.onSuccess(response));
+                
+            } catch (ApiException e) {
+                Log.e(TAG, "API Error getting users list", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showErrorToast(context, e.getErrorJson());
+                    callback.onError(e);
+                });
+            } catch (IOException e) {
+                Log.e(TAG, "Network error getting users list", e);
+                mainHandler.post(() -> {
+                    ErrorHandler.showNetworkError(context, e);
+                    callback.onError(e);
+                });
+            }
+        }).start();
+    }
+    
     // Callback genérico para GET y PUT
     public interface GenericCallback<T> {
         void onSuccess(T response);
+        void onError(Exception error);
+    }
+    
+    // Callback para envío de email de recuperación de contraseña
+    public interface SendResetPasswordCallback {
+        void onSuccess(SendResetPasswordResponse response);
+        void onError(Exception error);
+    }
+    
+    // Callback para confirmación de reset de contraseña
+    public interface ResetPasswordConfirmCallback {
+        void onSuccess(ResetPasswordConfirmResponse response);
+        void onError(Exception error);
+    }
+    
+    // Callback para lista de usuarios
+    public interface UsersListCallback {
+        void onSuccess(UsersListResponse response);
         void onError(Exception error);
     }
 }

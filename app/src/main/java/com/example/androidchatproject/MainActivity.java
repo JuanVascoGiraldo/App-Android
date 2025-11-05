@@ -24,13 +24,22 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import android.widget.ListView;
+
+import com.example.androidchatproject.adapter.ChatsAdapter;
+import com.example.androidchatproject.model.chats.ChatItem;
+import com.example.androidchatproject.model.chats.ChatsListResponse;
 import com.example.androidchatproject.model.user.*;
+import com.example.androidchatproject.network.ApiHttpClientChats;
 import com.example.androidchatproject.network.ApiHttpClientUser;
 import com.example.androidchatproject.session.SessionManager;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * MainActivity - Pantalla principal después del login
@@ -38,9 +47,10 @@ import java.io.InputStream;
 public class MainActivity extends AppCompatActivity {
     
     private static final String TAG = "MainActivity";
-    private static final int MAX_IMAGE_SIZE = 1024 * 1024; // 1MB
+    private static final int MAX_IMAGE_SIZE = 1024 * 1024 * 10; // 1MB
     
     private ApiHttpClientUser apiHttpClient;
+    private ApiHttpClientChats apiHttpClientChats;
     private SessionManager sessionManager;
     private String currentToken;
     private boolean isComingFromLogin = false;
@@ -49,6 +59,12 @@ public class MainActivity extends AppCompatActivity {
     private ImageView profileImageView;
     private TextView welcomeTextView;
     private FloatingActionButton uploadImageButton;
+    private MaterialButton searchUsersButton;
+    private ListView chatsListView;
+    
+    // Chats
+    private ChatsAdapter chatsAdapter;
+    private List<ChatItem> allChats;
     
     // Image picker launcher
     private ActivityResultLauncher<Intent> imagePickerLauncher;
@@ -104,9 +120,24 @@ public class MainActivity extends AppCompatActivity {
         profileImageView = findViewById(R.id.profileImageView);
         welcomeTextView = findViewById(R.id.welcomeTextView);
         uploadImageButton = findViewById(R.id.uploadImageButton);
+        searchUsersButton = findViewById(R.id.searchUsersButton);
+        chatsListView = findViewById(R.id.chatsListView);
         
-        // Initialize API client
+        // Initialize API clients
         apiHttpClient = new ApiHttpClientUser(this);
+        apiHttpClientChats = new ApiHttpClientChats(this);
+        
+        // Initialize chats adapter
+        allChats = new ArrayList<>();
+        chatsAdapter = new ChatsAdapter(this, allChats);
+        chatsListView.setAdapter(chatsAdapter);
+        
+        // Setup chats click listener
+        chatsListView.setOnItemClickListener((parent, view, position, id) -> {
+            ChatItem chat = chatsAdapter.getItem(position);
+            Toast.makeText(this, "Chat con: " + chat.getUsername(), Toast.LENGTH_SHORT).show();
+            // TODO: Navegar a pantalla de chat detallado
+        });
         
         // Setup image picker
         setupImagePicker();
@@ -117,12 +148,20 @@ public class MainActivity extends AppCompatActivity {
         // Setup logout button
         findViewById(R.id.btnLogout).setOnClickListener(v -> performLogout());
         
+        // Setup search users button
+        searchUsersButton.setOnClickListener(v -> {
+            startActivity(new Intent(MainActivity.this, SearchUsersActivity.class));
+        });
+        
         // Validate the session token
         Log.d(TAG, "Validating session token...");
         validateSessionManual(token);
         
         // Obtener perfil del usuario
         getUserProfileExample(token);
+        
+        // Cargar lista de chats
+        loadChats();
     }
     
     // ==================== EJEMPLOS CON CONEXIONES MANUALES ====================
@@ -201,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
                 new com.example.androidchatproject.utils.ImageDownloader.DownloadCallback() {
                     @Override
                     public void onSuccess(java.io.File imageFile) {
-                        Log.d(TAG, "✅ Fresh profile image downloaded after login");
+                        Log.d(TAG, "Fresh profile image downloaded after login");
                         Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
                         Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
                         
@@ -211,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(Exception error) {
-                        Log.e(TAG, "❌ Error downloading fresh profile image", error);
+                        Log.e(TAG, "Error downloading fresh profile image", error);
                         Toast.makeText(MainActivity.this, 
                                 "No se pudo cargar la imagen de perfil", 
                                 Toast.LENGTH_SHORT).show();
@@ -222,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
         }
         
         // Si NO viene desde login, usar sistema híbrido con caché
-        Log.d(TAG, "📦 Using cache strategy for profile image: " + username);
+        Log.d(TAG, "Using cache strategy for profile image: " + username);
         
         com.example.androidchatproject.utils.ImageDownloader.loadProfileImageWithCache(
             this,
@@ -236,12 +275,12 @@ public class MainActivity extends AppCompatActivity {
                     
                     if (age == 0) {
                         // Recién descargada
-                        Log.d(TAG, "✅ Profile image downloaded and cached");
+                        Log.d(TAG, "Profile image downloaded and cached");
                         Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
                         Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
                     } else {
                         // Cargada desde cache
-                        Log.d(TAG, "✅ Profile image loaded from cache");
+                        Log.d(TAG, "Profile image loaded from cache");
                         Log.d(TAG, "  Path: " + imageFile.getAbsolutePath());
                         Log.d(TAG, "  Age: " + age + " days");
                         Log.d(TAG, "  Size: " + (imageFile.length() / 1024) + " KB");
@@ -253,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
 
                 @Override
                 public void onError(Exception error) {
-                    Log.e(TAG, "❌ Error loading profile image", error);
+                    Log.e(TAG, "Error loading profile image", error);
                     
                     // Solo mostrar toast si es un error real (no cuando hay fallback)
                     if (!com.example.androidchatproject.utils.ImageDownloader
@@ -276,12 +315,12 @@ public class MainActivity extends AppCompatActivity {
             if (bitmap != null) {
                 // El ImageView ya tiene el estilo circular aplicado desde el XML
                 profileImageView.setImageBitmap(bitmap);
-                Log.d(TAG, "✅ Image displayed in circular ImageView");
+                Log.d(TAG, "Image displayed in circular ImageView");
             } else {
-                Log.e(TAG, "❌ Failed to decode bitmap from file");
+                Log.e(TAG, "Failed to decode bitmap from file");
             }
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error loading image into view", e);
+            Log.e(TAG, "Error loading image into view", e);
         }
     }
     
@@ -309,10 +348,10 @@ public class MainActivity extends AppCompatActivity {
             new ActivityResultContracts.RequestPermission(),
             isGranted -> {
                 if (isGranted) {
-                    Log.d(TAG, "✅ Permiso de galería concedido");
+                    Log.d(TAG, "Permiso de galería concedido");
                     openImagePicker();
                 } else {
-                    Log.w(TAG, "❌ Permiso de galería denegado");
+                    Log.w(TAG, "Permiso de galería denegado");
                     showPermissionDeniedDialog();
                 }
             }
@@ -335,15 +374,15 @@ public class MainActivity extends AppCompatActivity {
         
         // Verificar si ya tiene el permiso
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, "✅ Permiso ya concedido, abriendo selector");
+            Log.d(TAG, "Permiso ya concedido, abriendo selector");
             openImagePicker();
         } else {
             // Verificar si debe mostrar explicación
             if (shouldShowRequestPermissionRationale(permission)) {
-                Log.d(TAG, "ℹ️ Mostrando explicación de permiso");
+                Log.d(TAG, "ℹMostrando explicación de permiso");
                 showPermissionRationaleDialog(permission);
             } else {
-                Log.d(TAG, "🔒 Solicitando permiso de galería");
+                Log.d(TAG, "Solicitando permiso de galería");
                 requestPermissionLauncher.launch(permission);
             }
         }
@@ -433,27 +472,10 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Comprimir imagen a JPEG
+     * Comprimir imagen a JPEG usando ImageHelper
      */
     private byte[] compressImage(Bitmap bitmap) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        
-        // Redimensionar si es muy grande
-        int maxDimension = 1024;
-        if (bitmap.getWidth() > maxDimension || bitmap.getHeight() > maxDimension) {
-            float scale = Math.min(
-                (float) maxDimension / bitmap.getWidth(),
-                (float) maxDimension / bitmap.getHeight()
-            );
-            int newWidth = Math.round(bitmap.getWidth() * scale);
-            int newHeight = Math.round(bitmap.getHeight() * scale);
-            bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
-        }
-        
-        // Comprimir a JPEG con calidad 80
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream);
-        
-        return outputStream.toByteArray();
+        return com.example.androidchatproject.helper.ImageHelper.compressImage(bitmap);
     }
     
     /**
@@ -571,7 +593,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onError(Exception error) {
                     uploadImageButton.setEnabled(true);
                     
-                    Log.e(TAG, "❌ Error downloading new profile image", error);
+                    Log.e(TAG, "[ERROR] Error downloading new profile image", error);
                     Toast.makeText(MainActivity.this, 
                             "No se pudo descargar la imagen actualizada", 
                             Toast.LENGTH_SHORT).show();
@@ -816,6 +838,40 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
+     * Cargar chats del usuario desde API
+     */
+    private void loadChats() {
+        String token = sessionManager.getToken();
+        if (token == null || token.isEmpty()) {
+            Log.e(TAG, "No hay token disponible para cargar chats");
+            return;
+        }
+        
+        apiHttpClientChats.getAllChats(token, new ApiHttpClientChats.ChatsListCallback() {
+            @Override
+            public void onSuccess(ChatsListResponse response) {
+                List<ChatItem> chats = response.getChats();
+                
+                if (chats != null && !chats.isEmpty()) {
+                    Log.d(TAG, chats.size() + " chats cargados");
+                    allChats = chats;
+                    chatsAdapter.updateChats(allChats);
+                } else {
+                    Log.d(TAG, "No hay chats disponibles");
+                    allChats = new ArrayList<>();
+                    chatsAdapter.updateChats(allChats);
+                }
+            }
+            
+            @Override
+            public void onError(Exception error) {
+                Log.e(TAG, "Error al cargar chats: " + error.getMessage());
+                Toast.makeText(MainActivity.this, "Error al cargar chats", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    
+    /**
      * Navigate to Login Activity
      */
     private void navigateToLogin() {
@@ -823,5 +879,13 @@ public class MainActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (chatsAdapter != null) {
+            chatsAdapter.cleanup();
+        }
     }
 }

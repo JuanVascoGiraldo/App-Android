@@ -51,6 +51,24 @@
             android:name=".MainActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
+        
+        <!-- Forgot Password Activity - Solicitar recuperación de contraseña -->
+        <activity
+            android:name=".ForgotPasswordActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        
+        <!-- Reset Password Activity - Confirmar nueva contraseña -->
+        <activity
+            android:name=".ResetPasswordActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        
+        <!-- Search Users Activity - Buscar usuarios -->
+        <activity
+            android:name=".SearchUsersActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
             
     </application>
 

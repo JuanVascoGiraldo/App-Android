@@ -81,8 +81,8 @@ public class LoginActivity extends AppCompatActivity {
         loginButton.setOnClickListener(v -> attemptLogin());
 
         forgotPasswordTextView.setOnClickListener(v -> {
-            Toast.makeText(this, "Funcionalidad en desarrollo", Toast.LENGTH_SHORT).show();
-            // TODO: Implementar recuperación de contraseña
+            Intent intent = new Intent(LoginActivity.this, ForgotPasswordActivity.class);
+            startActivity(intent);
         });
 
         registerTextView.setOnClickListener(v -> {
