@@ -24,9 +24,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.widget.ListView;
 
 import com.example.androidchatproject.adapter.ChatsAdapter;
+import com.example.androidchatproject.database.ChatsCacheHelper;
 import com.example.androidchatproject.model.chats.ChatItem;
 import com.example.androidchatproject.model.chats.ChatsListResponse;
 import com.example.androidchatproject.model.user.*;
@@ -34,6 +37,7 @@ import com.example.androidchatproject.network.ApiHttpClientChats;
 import com.example.androidchatproject.network.ApiHttpClientUser;
 import com.example.androidchatproject.session.SessionManager;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.io.ByteArrayOutputStream;
@@ -52,8 +56,10 @@ public class MainActivity extends AppCompatActivity {
     private ApiHttpClientUser apiHttpClient;
     private ApiHttpClientChats apiHttpClientChats;
     private SessionManager sessionManager;
+    private ChatsCacheHelper chatsCacheHelper;
     private String currentToken;
     private boolean isComingFromLogin = false;
+    private boolean isOfflineMode = false;
     
     // UI Components
     private ImageView profileImageView;
@@ -61,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
     private FloatingActionButton uploadImageButton;
     private MaterialButton searchUsersButton;
     private ListView chatsListView;
+    private MaterialCardView offlineCard;
     
     // Chats
     private ChatsAdapter chatsAdapter;
@@ -122,10 +129,12 @@ public class MainActivity extends AppCompatActivity {
         uploadImageButton = findViewById(R.id.uploadImageButton);
         searchUsersButton = findViewById(R.id.searchUsersButton);
         chatsListView = findViewById(R.id.chatsListView);
+        offlineCard = findViewById(R.id.offlineCard);
         
         // Initialize API clients
         apiHttpClient = new ApiHttpClientUser(this);
         apiHttpClientChats = new ApiHttpClientChats(this);
+        chatsCacheHelper = new ChatsCacheHelper(this);
         
         // Initialize chats adapter
         allChats = new ArrayList<>();
@@ -153,15 +162,59 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(MainActivity.this, SearchUsersActivity.class));
         });
         
-        // Validate the session token
-        Log.d(TAG, "Validating session token...");
-        validateSessionManual(token);
+        // Verificar conexión a internet
+        if (isNetworkAvailable()) {
+            Log.d(TAG, "Conexión disponible - Modo online");
+            isOfflineMode = false;
+            offlineCard.setVisibility(android.view.View.GONE);
+            
+            // Validate the session token
+            Log.d(TAG, "Validating session token...");
+            validateSessionManual(token);
+            
+            // Obtener perfil del usuario
+            getUserProfileExample(token);
+            
+            // Cargar lista de chats desde API
+            loadChats();
+        } else {
+            Log.w(TAG, "Sin conexión - Modo offline");
+            isOfflineMode = true;
+            offlineCard.setVisibility(android.view.View.VISIBLE);
+            
+            // Cargar datos desde caché
+            loadOfflineData();
+        }
+    }
+    
+    /**
+     * Verificar si hay conexión a internet
+     */
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        }
+        return false;
+    }
+    
+    /**
+     * Cargar datos desde caché cuando no hay conexión
+     */
+    private void loadOfflineData() {
+        // Cargar username desde SessionManager
+        String username = sessionManager.getUsername();
+        if (username != null && !username.isEmpty()) {
+            welcomeTextView.setText("Hola, " + username);
+        } else {
+            welcomeTextView.setText("Hola, Usuario");
+        }
         
-        // Obtener perfil del usuario
-        getUserProfileExample(token);
+        // Cargar chats desde caché
+        loadChatsFromCache();
         
-        // Cargar lista de chats
-        loadChats();
+        Toast.makeText(this, "Modo offline - Mostrando datos guardados", Toast.LENGTH_LONG).show();
     }
     
     // ==================== EJEMPLOS CON CONEXIONES MANUALES ====================
@@ -189,6 +242,9 @@ public class MainActivity extends AppCompatActivity {
                 // Mostrar "Hola, {username}"
                 String welcomeMessage = "Hola, " + response.getUsername();
                 welcomeTextView.setText(welcomeMessage);
+                
+                // Guardar username para modo offline
+                sessionManager.saveUsername(response.getUsername());
                 
                 Toast.makeText(MainActivity.this, 
                         "Bienvenido, " + response.getUsername() + "!", 
@@ -853,9 +909,13 @@ public class MainActivity extends AppCompatActivity {
                 List<ChatItem> chats = response.getChats();
                 
                 if (chats != null && !chats.isEmpty()) {
-                    Log.d(TAG, chats.size() + " chats cargados");
+                    Log.d(TAG, chats.size() + " chats cargados desde API");
                     allChats = chats;
                     chatsAdapter.updateChats(allChats);
+                    
+                    // Guardar en caché para uso offline
+                    chatsCacheHelper.cacheChats(chats);
+                    Log.d(TAG, "Chats guardados en caché");
                 } else {
                     Log.d(TAG, "No hay chats disponibles");
                     allChats = new ArrayList<>();
@@ -867,8 +927,31 @@ public class MainActivity extends AppCompatActivity {
             public void onError(Exception error) {
                 Log.e(TAG, "Error al cargar chats: " + error.getMessage());
                 Toast.makeText(MainActivity.this, "Error al cargar chats", Toast.LENGTH_SHORT).show();
+                
+                // Si falla el API, intentar cargar desde caché
+                loadChatsFromCache();
             }
         });
+    }
+    
+    /**
+     * Cargar chats desde caché SQLite
+     */
+    private void loadChatsFromCache() {
+        List<ChatItem> cachedChats = chatsCacheHelper.getCachedChats();
+        
+        if (cachedChats != null && !cachedChats.isEmpty()) {
+            Log.d(TAG, cachedChats.size() + " chats cargados desde caché");
+            allChats = cachedChats;
+            chatsAdapter.updateChats(allChats);
+            
+            if (!isOfflineMode) {
+                Toast.makeText(this, "Mostrando datos en caché", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Log.d(TAG, "No hay chats en caché");
+            Toast.makeText(this, "No hay chats disponibles", Toast.LENGTH_SHORT).show();
+        }
     }
     
     /**

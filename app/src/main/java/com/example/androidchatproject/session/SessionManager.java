@@ -13,6 +13,7 @@ public class SessionManager {
     private DatabaseHelper databaseHelper;
     private String memoryToken;  // For non-persistent sessions
     private String memoryExpirationDate;
+    private String memoryUsername;  // For offline mode
     
     public SessionManager(Context context) {
         this.databaseHelper = new DatabaseHelper(context);
@@ -92,6 +93,21 @@ public class SessionManager {
         databaseHelper.clearToken();
         memoryToken = null;
         memoryExpirationDate = null;
+    }
+    
+    /**
+     * Save username for offline mode
+     */
+    public void saveUsername(String username) {
+        this.memoryUsername = username;
+        android.util.Log.d("SessionManager", "Username saved: " + username);
+    }
+    
+    /**
+     * Get username for offline mode
+     */
+    public String getUsername() {
+        return memoryUsername;
     }
     
     /**

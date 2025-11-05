@@ -1,3 +1,4 @@
+
 package com.example.androidchatproject.network;
 
 import com.google.gson.Gson;
@@ -287,6 +288,101 @@ public class HttpClient {
     }
     
     /**
+     * Realiza una petición POST con multipart/form-data para mensajes de chat
+     * Soporta envío de texto + archivo adjunto
+     * 
+     * @param urlString URL del endpoint
+     * @param chatId ID del chat
+     * @param content Contenido del mensaje (puede ser null)
+     * @param attachmentBytes Bytes del archivo adjunto (puede ser null)
+     * @param attachmentFileName Nombre del archivo adjunto (puede ser null)
+     * @param responseClass Clase del objeto de respuesta
+     * @param authToken Token de autenticación
+     * @param <T> Tipo de la respuesta
+     * @return Objeto deserializado de la respuesta JSON
+     * @throws IOException Si hay error de red o conexión
+     */
+    public <T> T postMultipartWithChatMessage(String urlString, String chatId, String content,
+                                              byte[] attachmentBytes, String attachmentFileName,
+                                              Class<T> responseClass, String authToken) throws IOException {
+        HttpURLConnection connection = null;
+        
+        try {
+            URL url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(CONNECT_TIMEOUT);
+            connection.setReadTimeout(READ_TIMEOUT);
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            
+            // Configurar multipart
+            String boundary = "Boundary-" + System.currentTimeMillis();
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            connection.setRequestProperty("Accept", "application/json");
+            
+            // Agregar token de autenticación
+            if (authToken != null && !authToken.isEmpty()) {
+                connection.setRequestProperty("Authorization", authToken);
+            }
+            
+            String LINE_FEED = "\r\n";
+            
+            // Escribir el cuerpo multipart
+            OutputStream outputStream = connection.getOutputStream();
+            
+            // Campo chat_id (requerido)
+            if (chatId != null && !chatId.isEmpty()) {
+                outputStream.write(("--" + boundary + LINE_FEED).getBytes());
+                outputStream.write(("Content-Disposition: form-data; name=\"chat_id\"" + LINE_FEED).getBytes());
+                outputStream.write(LINE_FEED.getBytes());
+                outputStream.write((chatId + LINE_FEED).getBytes());
+            }
+            
+            // Campo content (opcional)
+            if (content != null && !content.isEmpty()) {
+                outputStream.write(("--" + boundary + LINE_FEED).getBytes());
+                outputStream.write(("Content-Disposition: form-data; name=\"content\"" + LINE_FEED).getBytes());
+                outputStream.write(LINE_FEED.getBytes());
+                outputStream.write((content + LINE_FEED).getBytes());
+            }
+            
+            // Campo attachment (opcional)
+            if (attachmentBytes != null && attachmentBytes.length > 0 && attachmentFileName != null && !attachmentFileName.isEmpty()) {
+                outputStream.write(("--" + boundary + LINE_FEED).getBytes());
+                outputStream.write(("Content-Disposition: form-data; name=\"attachment\"; filename=\"" + attachmentFileName + "\"" + LINE_FEED).getBytes());
+                outputStream.write(("Content-Type: image/*" + LINE_FEED).getBytes());
+                outputStream.write(LINE_FEED.getBytes());
+                outputStream.write(attachmentBytes);
+                outputStream.write(LINE_FEED.getBytes());
+            }
+            
+            // Fin del multipart
+            outputStream.write(("--" + boundary + "--" + LINE_FEED).getBytes());
+            outputStream.flush();
+            outputStream.close();
+            
+            // Verificar código de respuesta
+            int responseCode = connection.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                String errorJson = readErrorResponse(connection);
+                throw new ApiException(responseCode, errorJson);
+            }
+            
+            // Leer la respuesta
+            String jsonResponse = readResponse(connection);
+            
+            // Parsear JSON a objeto
+            return gson.fromJson(jsonResponse, responseClass);
+            
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+    
+    /**
      * Obtiene la instancia de GSON utilizada por el cliente
      * Útil para parsear manualmente si es necesario
      */
@@ -294,3 +390,4 @@ public class HttpClient {
         return gson;
     }
 }
+
