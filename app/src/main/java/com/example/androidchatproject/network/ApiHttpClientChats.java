@@ -145,7 +145,8 @@ public class ApiHttpClientChats {
     public void getChatById(String token, String chatId, ChatDetailCallback callback) {
         new Thread(() -> {
             try {
-                String url = ApiConfig.BASE_URL + "api/chats/id/" + chatId;
+                String url = ApiConfig.BASE_URL + "api/chats/id/" + chatId + "/";
+                Log.d(TAG, "Getting chat detail from URL: " + url);
                 ChatDetailResponse response = httpClient.get(url, ChatDetailResponse.class, token);
                 
                 Log.d(TAG, "Chat detail retrieved successfully: " + response.getMessages().size() + " messages");
@@ -180,9 +181,15 @@ public class ApiHttpClientChats {
     public void sendMessage(String token, String chatId, String content, SendMessageCallback callback) {
         new Thread(() -> {
             try {
-                String url = ApiConfig.BASE_URL + "api/chats/messages/";
-                SendMessageRequest request = new SendMessageRequest(chatId, content);
-                SendMessageResponse response = httpClient.post(url, request, SendMessageResponse.class, token);
+                String url = ApiConfig.BASE_URL + "api/chats/messages";
+                Log.d(TAG, "Sending message to URL: " + url);
+                
+                // Usar multipart/form-data para consistencia con el endpoint
+                java.util.Map<String, Object> formData = new java.util.HashMap<>();
+                formData.put("chat_id", chatId);
+                formData.put("content", content);
+                
+                SendMessageResponse response = httpClient.postMultipart(url, formData, SendMessageResponse.class, token);
                 
                 Log.d(TAG, "Message sent successfully");
                 
@@ -206,29 +213,46 @@ public class ApiHttpClientChats {
     
     /**
      * Enviar un mensaje con archivo adjunto en un chat existente
-     * POST api/chats/messages/ (multipart/form-data)
+     * POST api/chats/messages (multipart/form-data)
      * 
      * @param token Token de autenticación
      * @param chatId ID del chat
      * @param content Contenido del mensaje (opcional)
      * @param attachmentBytes Bytes del archivo adjunto
      * @param attachmentFileName Nombre del archivo adjunto
+     * @param attachmentMimeType MIME type del archivo (opcional, se detecta por extensión si es null)
      * @param callback Callback con el resultado
      */
     public void sendMessageWithAttachment(String token, String chatId, String content, 
                                          byte[] attachmentBytes, String attachmentFileName, 
-                                         SendMessageCallback callback) {
+                                         String attachmentMimeType, SendMessageCallback callback) {
         new Thread(() -> {
             try {
-                String url = ApiConfig.BASE_URL + "api/chats/messages/";
+                String url = ApiConfig.BASE_URL + "api/chats/messages";
+                Log.d(TAG, "Sending message with attachment to URL: " + url);
                 
-                // Usar el método multipart del HttpClient
-                SendMessageResponse response = httpClient.postMultipartWithChatMessage(
+                // Crear mapa con los datos del formulario
+                java.util.Map<String, Object> formData = new java.util.HashMap<>();
+                formData.put("chat_id", chatId);
+                
+                if (content != null && !content.isEmpty()) {
+                    formData.put("content", content);
+                }
+                
+                if (attachmentBytes != null && attachmentBytes.length > 0 && attachmentFileName != null) {
+                    // Usar el mimeType proporcionado, o detectar por extensión si no está disponible
+                    String mimeType = attachmentMimeType;
+                    if (mimeType == null || mimeType.isEmpty()) {
+                        mimeType = getMimeTypeFromFileName(attachmentFileName);
+                    }
+                    Log.d(TAG, "Attachment - FileName: " + attachmentFileName + ", MimeType: " + mimeType + ", Size: " + attachmentBytes.length);
+                    formData.put("attachment", new HttpClient.FileData(attachmentBytes, attachmentFileName, mimeType));
+                }
+                
+                // Usar el nuevo método postMultipart
+                SendMessageResponse response = httpClient.postMultipart(
                     url, 
-                    chatId, 
-                    content, 
-                    attachmentBytes, 
-                    attachmentFileName, 
+                    formData, 
                     SendMessageResponse.class, 
                     token
                 );
@@ -251,5 +275,49 @@ public class ApiHttpClientChats {
                 });
             }
         }).start();
+    }
+    
+    /**
+     * Determina el MIME type basado en la extensión del archivo
+     */
+    private String getMimeTypeFromFileName(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "application/octet-stream";
+        }
+        
+        String lower = fileName.toLowerCase();
+        
+        // Imágenes
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".bmp")) return "image/bmp";
+        
+        // PDFs
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        
+        // Audio
+        if (lower.endsWith(".mp3")) return "audio/mpeg";
+        if (lower.endsWith(".wav")) return "audio/wav";
+        if (lower.endsWith(".m4a")) return "audio/mp4";
+        if (lower.endsWith(".aac")) return "audio/aac";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".flac")) return "audio/flac";
+        
+        // Videos
+        if (lower.endsWith(".mp4")) return "video/mp4";
+        if (lower.endsWith(".avi")) return "video/x-msvideo";
+        if (lower.endsWith(".mov")) return "video/quicktime";
+        
+        // Documentos
+        if (lower.endsWith(".doc")) return "application/msword";
+        if (lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lower.endsWith(".xls")) return "application/vnd.ms-excel";
+        if (lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (lower.endsWith(".txt")) return "text/plain";
+        
+        // Default
+        return "application/octet-stream";
     }
 }

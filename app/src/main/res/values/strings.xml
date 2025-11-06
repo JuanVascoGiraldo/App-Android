@@ -41,4 +41,16 @@
     <!-- Content Descriptions -->
     <string name="cd_show_password">Mostrar contraseña</string>
     <string name="cd_hide_password">Ocultar contraseña</string>
+    
+    <!-- Chat Detail -->
+    <string name="profile_image">Imagen de perfil</string>
+    <string name="warning">Advertencia</string>
+    <string name="attachment_preview">Vista previa del archivo adjunto</string>
+    <string name="remove_attachment">Eliminar archivo adjunto</string>
+    <string name="attach_file">Adjuntar archivo</string>
+    <string name="send_message">Enviar mensaje</string>
+    <string name="image_attachment">Imagen adjunta</string>
+    <string name="pdf_file">Archivo PDF</string>
+    <string name="audio_file">Archivo de audio</string>
+    <string name="download_file">Descargar archivo</string>
 </resources>

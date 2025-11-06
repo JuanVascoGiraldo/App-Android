@@ -125,6 +125,57 @@ public class DateTimeHelper {
     }
     
     /**
+     * Formatear fecha para mensajes de chat
+     * - Si es hoy: "HH:mm"
+     * - Si es de esta semana: "Lun HH:mm"
+     * - Si es más antiguo: "dd/MM/yyyy HH:mm"
+     * 
+     * @param utcDateString Fecha en formato ISO 8601 UTC
+     * @return String formateado para mensajes
+     */
+    public static String formatMessageDateTime(String utcDateString) {
+        Date localDate = utcToLocal(utcDateString);
+        
+        if (localDate == null) {
+            return "";
+        }
+        
+        try {
+            Date now = new Date();
+            long diff = now.getTime() - localDate.getTime();
+            long days = diff / (1000 * 60 * 60 * 24);
+            
+            SimpleDateFormat dayFormat = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
+            String todayString = dayFormat.format(now);
+            String messageDateString = dayFormat.format(localDate);
+            
+            // Si es hoy, solo mostrar hora
+            if (todayString.equals(messageDateString)) {
+                SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                return timeFormat.format(localDate);
+            }
+            // Si fue ayer
+            else if (days == 1) {
+                SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+                return "Ayer " + timeFormat.format(localDate);
+            }
+            // Si es de esta semana (últimos 7 días)
+            else if (days < 7) {
+                SimpleDateFormat timeFormat = new SimpleDateFormat("EEE HH:mm", Locale.getDefault());
+                return timeFormat.format(localDate);
+            }
+            // Si es más antiguo, mostrar fecha completa
+            else {
+                SimpleDateFormat fullFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+                return fullFormat.format(localDate);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al formatear fecha de mensaje: " + utcDateString, e);
+            return "";
+        }
+    }
+    
+    /**
      * Obtener diferencia de tiempo en formato legible
      * Ej: "Hace 5 minutos", "Hace 2 horas", "Hace 3 días"
      * 

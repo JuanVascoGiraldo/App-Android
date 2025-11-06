@@ -27,7 +27,7 @@ public class ChatsCacheHelper extends SQLiteOpenHelper {
     
     private static final String TAG = "ChatsCacheHelper";
     private static final String DATABASE_NAME = "chats_cache.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
     
     // Tabla de chats simples (lista)
     private static final String TABLE_CHATS = "chats";
@@ -36,6 +36,7 @@ public class ChatsCacheHelper extends SQLiteOpenHelper {
     private static final String COLUMN_USERNAME = "username";
     private static final String COLUMN_PROFILE_IMG = "profile_img";
     private static final String COLUMN_LAST_MESSAGE = "last_message";
+    private static final String COLUMN_LAST_MESSAGE_ID = "last_message_id";
     private static final String COLUMN_LAST_MESSAGE_TIME = "last_message_time";
     private static final String COLUMN_CREATED_AT = "created_at";
     private static final String COLUMN_UPDATED_AT = "updated_at";
@@ -63,6 +64,7 @@ public class ChatsCacheHelper extends SQLiteOpenHelper {
                 COLUMN_USERNAME + " TEXT, " +
                 COLUMN_PROFILE_IMG + " TEXT, " +
                 COLUMN_LAST_MESSAGE + " TEXT, " +
+                COLUMN_LAST_MESSAGE_ID + " TEXT, " +
                 COLUMN_LAST_MESSAGE_TIME + " TEXT, " +
                 COLUMN_CREATED_AT + " TEXT, " +
                 COLUMN_UPDATED_AT + " TEXT, " +
@@ -122,6 +124,7 @@ public class ChatsCacheHelper extends SQLiteOpenHelper {
                 values.put(COLUMN_USERNAME, chat.getUsername());
                 values.put(COLUMN_PROFILE_IMG, chat.getProfileImg());
                 values.put(COLUMN_LAST_MESSAGE, chat.getLastMessage());
+                values.put(COLUMN_LAST_MESSAGE_ID, chat.getLastMessageId());
                 values.put(COLUMN_LAST_MESSAGE_TIME, chat.getLastMessageTime());
                 values.put(COLUMN_CREATED_AT, chat.getCreatedAt());
                 values.put(COLUMN_UPDATED_AT, chat.getUpdatedAt());
@@ -168,6 +171,7 @@ public class ChatsCacheHelper extends SQLiteOpenHelper {
                     chat.setUsername(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME)));
                     chat.setProfileImg(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROFILE_IMG)));
                     chat.setLastMessage(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_MESSAGE)));
+                    chat.setLastMessageId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_MESSAGE_ID)));
                     chat.setLastMessageTime(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_MESSAGE_TIME)));
                     chat.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CREATED_AT)));
                     chat.setUpdatedAt(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UPDATED_AT)));
@@ -225,6 +229,60 @@ public class ChatsCacheHelper extends SQLiteOpenHelper {
         }
         
         return false;
+    }
+    
+    /**
+     * Buscar un chat por userId
+     * @param userId ID del usuario con quien se tiene el chat
+     * @return ChatItem si existe, null si no existe
+     */
+    public ChatItem findChatByUserId(String userId) {
+        if (userId == null || userId.isEmpty()) {
+            return null;
+        }
+        
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        ChatItem chat = null;
+        
+        try {
+            cursor = db.query(
+                    TABLE_CHATS,
+                    null,
+                    COLUMN_USER + " = ?",
+                    new String[]{userId},
+                    null,
+                    null,
+                    null,
+                    "1"
+            );
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                chat = new ChatItem();
+                chat.setId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+                chat.setUser(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USER)));
+                chat.setUsername(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME)));
+                chat.setProfileImg(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PROFILE_IMG)));
+                chat.setLastMessage(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_MESSAGE)));
+                chat.setLastMessageId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_MESSAGE_ID)));
+                chat.setLastMessageTime(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_MESSAGE_TIME)));
+                chat.setCreatedAt(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CREATED_AT)));
+                chat.setUpdatedAt(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UPDATED_AT)));
+                
+                Log.d(TAG, "Chat found in cache for userId: " + userId + ", chatId: " + chat.getId());
+            } else {
+                Log.d(TAG, "No chat found in cache for userId: " + userId);
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error finding chat by userId", e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        
+        return chat;
     }
     
     // ==================== CHATS COMPLETOS (DETALLE CON MENSAJES) ====================

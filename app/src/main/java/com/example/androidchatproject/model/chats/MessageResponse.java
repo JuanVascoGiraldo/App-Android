@@ -19,6 +19,9 @@ public class MessageResponse {
     @SerializedName("attachment_url")
     private String attachmentUrl;
     
+    @SerializedName("mime_type")
+    private String mimeType;
+    
     @SerializedName("is_deleted")
     private boolean isDeleted;
     
@@ -34,11 +37,12 @@ public class MessageResponse {
     
     // Constructor completo
     public MessageResponse(String id, String senderId, String content, String attachmentUrl,
-                          boolean isDeleted, String createdAt, String updatedAt) {
+                          String mimeType, boolean isDeleted, String createdAt, String updatedAt) {
         this.id = id;
         this.senderId = senderId;
         this.content = content;
         this.attachmentUrl = attachmentUrl;
+        this.mimeType = mimeType;
         this.isDeleted = isDeleted;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -59,6 +63,10 @@ public class MessageResponse {
     
     public String getAttachmentUrl() {
         return attachmentUrl;
+    }
+    
+    public String getMimeType() {
+        return mimeType;
     }
     
     public boolean isDeleted() {
@@ -90,6 +98,10 @@ public class MessageResponse {
         this.attachmentUrl = attachmentUrl;
     }
     
+    public void setMimeType(String mimeType) {
+        this.mimeType = mimeType;
+    }
+    
     public void setDeleted(boolean deleted) {
         isDeleted = deleted;
     }
@@ -109,6 +121,7 @@ public class MessageResponse {
                 ", senderId='" + senderId + '\'' +
                 ", content='" + content + '\'' +
                 ", attachmentUrl='" + attachmentUrl + '\'' +
+                ", mimeType='" + mimeType + '\'' +
                 ", isDeleted=" + isDeleted +
                 ", createdAt='" + createdAt + '\'' +
                 ", updatedAt='" + updatedAt + '\'' +

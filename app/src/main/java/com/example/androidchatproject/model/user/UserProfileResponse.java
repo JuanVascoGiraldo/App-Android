@@ -8,7 +8,10 @@ import com.google.gson.annotations.SerializedName;
  */
 public class UserProfileResponse {
     
+    @SerializedName("id")
     private String id;
+    
+    @SerializedName("username")
     private String username;
     
     @SerializedName("email_is_verified")
@@ -28,6 +31,14 @@ public class UserProfileResponse {
     }
 
     // Getters y Setters
+    public String getId() {
+        return id;
+    }
+    
+    public void setId(String id) {
+        this.id = id;
+    }
+    
     public String getUsername() {
         return username;
     }

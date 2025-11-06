@@ -1,5 +1,6 @@
-
 package com.example.androidchatproject.network;
+
+import android.util.Log;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -17,22 +18,22 @@ import java.nio.charset.StandardCharsets;
  * Utiliza HttpURLConnection y GSON para parsear respuestas JSON
  */
 public class HttpClient {
-    
+
     private static final int CONNECT_TIMEOUT = 15000; // 15 segundos
     private static final int READ_TIMEOUT = 15000; // 15 segundos
     private static final String CONTENT_TYPE_JSON = "application/json; charset=UTF-8";
-    
+
     private final Gson gson;
-    
+
     public HttpClient() {
         this.gson = new GsonBuilder()
                 .setLenient()
                 .create();
     }
-    
+
     /**
      * Realiza una petición GET
-     * 
+     *
      * @param urlString URL del endpoint
      * @param responseClass Clase del objeto de respuesta
      * @param authToken Token de autenticación (opcional, puede ser null)
@@ -42,7 +43,7 @@ public class HttpClient {
      */
     public <T> T get(String urlString, Class<T> responseClass, String authToken) throws IOException {
         HttpURLConnection connection = null;
-        
+
         try {
             URL url = new URL(urlString);
             connection = (HttpURLConnection) url.openConnection();
@@ -51,15 +52,15 @@ public class HttpClient {
             connection.setReadTimeout(READ_TIMEOUT);
             connection.setRequestProperty("Content-Type", CONTENT_TYPE_JSON);
             connection.setRequestProperty("Accept", "application/json");
-            
+
             // Agregar token de autenticación si existe
             if (authToken != null && !authToken.isEmpty()) {
                 connection.setRequestProperty("Authorization", authToken);
             }
-            
+
             // Realizar la conexión
             connection.connect();
-            
+
             // Verificar código de respuesta
             int responseCode = connection.getResponseCode();
             if (responseCode < 200 || responseCode >= 300) {
@@ -68,23 +69,26 @@ public class HttpClient {
                 // Lanzar excepción con el JSON completo para que pueda ser parseado
                 throw new ApiException(responseCode, errorJson);
             }
-            
+
             // Leer la respuesta
             String jsonResponse = readResponse(connection);
-            
+
+            // Log raw response for debugging
+            Log.d("HttpClient", "Raw response from " + urlString + ": " + jsonResponse);
+
             // Parsear JSON a objeto usando GSON
             return gson.fromJson(jsonResponse, responseClass);
-            
+
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
         }
     }
-    
+
     /**
      * Realiza una petición POST
-     * 
+     *
      * @param urlString URL del endpoint
      * @param requestBody Objeto que será convertido a JSON
      * @param responseClass Clase del objeto de respuesta
@@ -94,12 +98,99 @@ public class HttpClient {
      * @throws IOException Si hay error de red o conexión
      */
     public <T> T post(String urlString, Object requestBody, Class<T> responseClass, String authToken) throws IOException {
-        return sendRequestWithBody("POST", urlString, requestBody, responseClass, authToken);
+        return sendRequestWithBody("POST", urlString, requestBody, responseClass, authToken, CONTENT_TYPE_JSON);
     }
-    
+
+    /**
+     * Realiza una petición POST con multipart/form-data
+     *
+     * @param urlString URL del endpoint
+     * @param formData Mapa con los campos del formulario
+     * @param responseClass Clase del objeto de respuesta
+     * @param authToken Token de autenticación (opcional, puede ser null)
+     * @param <T> Tipo de la respuesta
+     * @return Objeto deserializado de la respuesta JSON
+     * @throws IOException Si hay error de red o conexión
+     */
+    public <T> T postMultipart(String urlString, java.util.Map<String, Object> formData,
+                               Class<T> responseClass, String authToken) throws IOException {
+        HttpURLConnection connection = null;
+        String boundary = "Boundary-" + System.currentTimeMillis();
+        String LINE_FEED = "\r\n";
+
+        try {
+            URL url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(CONNECT_TIMEOUT);
+            connection.setReadTimeout(READ_TIMEOUT);
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+
+            // Headers para multipart/form-data
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            connection.setRequestProperty("Accept", "application/json");
+
+            // Agregar token de autenticación
+            if (authToken != null && !authToken.isEmpty()) {
+                connection.setRequestProperty("Authorization", authToken);
+            }
+
+            // Escribir el cuerpo multipart
+            OutputStream outputStream = connection.getOutputStream();
+
+            // Procesar cada campo del formulario
+            for (java.util.Map.Entry<String, Object> entry : formData.entrySet()) {
+                String fieldName = entry.getKey();
+                Object value = entry.getValue();
+
+                if (value instanceof FileData) {
+                    // Es un archivo
+                    FileData fileData = (FileData) value;
+                    outputStream.write(("--" + boundary + LINE_FEED).getBytes());
+                    outputStream.write(("Content-Disposition: form-data; name=\"" + fieldName +
+                            "\"; filename=\"" + fileData.fileName + "\"" + LINE_FEED).getBytes());
+                    outputStream.write(("Content-Type: " + fileData.mimeType + LINE_FEED).getBytes());
+                    outputStream.write(LINE_FEED.getBytes());
+                    outputStream.write(fileData.data);
+                    outputStream.write(LINE_FEED.getBytes());
+                } else {
+                    // Es un campo de texto
+                    outputStream.write(("--" + boundary + LINE_FEED).getBytes());
+                    outputStream.write(("Content-Disposition: form-data; name=\"" + fieldName + "\"" + LINE_FEED).getBytes());
+                    outputStream.write(LINE_FEED.getBytes());
+                    outputStream.write((value.toString() + LINE_FEED).getBytes());
+                }
+            }
+
+            // Fin del multipart
+            outputStream.write(("--" + boundary + "--" + LINE_FEED).getBytes());
+            outputStream.flush();
+            outputStream.close();
+
+            // Verificar código de respuesta
+            int responseCode = connection.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                String errorJson = readErrorResponse(connection);
+                throw new ApiException(responseCode, errorJson);
+            }
+
+            // Leer la respuesta
+            String jsonResponse = readResponse(connection);
+
+            // Parsear JSON a objeto
+            return gson.fromJson(jsonResponse, responseClass);
+
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
     /**
      * Realiza una petición PUT
-     * 
+     *
      * @param urlString URL del endpoint
      * @param requestBody Objeto que será convertido a JSON
      * @param responseClass Clase del objeto de respuesta
@@ -109,41 +200,41 @@ public class HttpClient {
      * @throws IOException Si hay error de red o conexión
      */
     public <T> T put(String urlString, Object requestBody, Class<T> responseClass, String authToken) throws IOException {
-        return sendRequestWithBody("PUT", urlString, requestBody, responseClass, authToken);
+        return sendRequestWithBody("PUT", urlString, requestBody, responseClass, authToken, CONTENT_TYPE_JSON);
     }
-    
+
     /**
      * Método genérico para enviar peticiones con body (POST, PUT)
      */
-    private <T> T sendRequestWithBody(String method, String urlString, Object requestBody, 
-                                      Class<T> responseClass, String authToken) throws IOException {
+    private <T> T sendRequestWithBody(String method, String urlString, Object requestBody,
+                                      Class<T> responseClass, String authToken, String contentType) throws IOException {
         HttpURLConnection connection = null;
-        
+
         try {
             URL url = new URL(urlString);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod(method);
             connection.setConnectTimeout(CONNECT_TIMEOUT);
             connection.setReadTimeout(READ_TIMEOUT);
-            connection.setRequestProperty("Content-Type", CONTENT_TYPE_JSON);
+            connection.setRequestProperty("Content-Type", contentType);
             connection.setRequestProperty("Accept", "application/json");
             connection.setDoOutput(true); // Permite enviar body
-            
+
             // Agregar token de autenticación si existe
             if (authToken != null && !authToken.isEmpty()) {
                 connection.setRequestProperty("Authorization", authToken);
             }
-            
+
             // Convertir el objeto request a JSON usando GSON
             String jsonBody = gson.toJson(requestBody);
-            
+
             // Escribir el body
             try (OutputStream os = connection.getOutputStream()) {
                 byte[] input = jsonBody.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
                 os.flush();
             }
-            
+
             // Verificar código de respuesta
             int responseCode = connection.getResponseCode();
             if (responseCode < 200 || responseCode >= 300) {
@@ -152,56 +243,56 @@ public class HttpClient {
                 // Lanzar excepción con el JSON completo para que pueda ser parseado
                 throw new ApiException(responseCode, errorJson);
             }
-            
+
             // Leer la respuesta
             String jsonResponse = readResponse(connection);
-            
+
             // Parsear JSON a objeto usando GSON
             return gson.fromJson(jsonResponse, responseClass);
-            
+
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
         }
     }
-    
+
     /**
      * Lee la respuesta exitosa del servidor
      */
     private String readResponse(HttpURLConnection connection) throws IOException {
         StringBuilder response = new StringBuilder();
-        
+
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-            
+
             String line;
             while ((line = reader.readLine()) != null) {
                 response.append(line);
             }
         }
-        
+
         return response.toString();
     }
-    
+
     /**
      * Lee la respuesta de error del servidor
      */
     private String readErrorResponse(HttpURLConnection connection) {
         try {
             StringBuilder response = new StringBuilder();
-            
+
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8))) {
-                
+
                 String line;
                 while ((line = reader.readLine()) != null) {
                     response.append(line);
                 }
             }
-            
+
             return response.toString();
-            
+
         } catch (Exception e) {
             try {
                 return connection.getResponseMessage();
@@ -210,10 +301,10 @@ public class HttpClient {
             }
         }
     }
-    
+
     /**
      * Upload de archivo con multipart/form-data
-     * 
+     *
      * @param urlString URL del endpoint
      * @param fileBytes Bytes del archivo a subir
      * @param fileName Nombre del archivo
@@ -224,12 +315,12 @@ public class HttpClient {
      * @return Objeto deserializado de la respuesta JSON
      * @throws IOException Si hay error de red o conexión
      */
-    public <T> T uploadFile(String urlString, byte[] fileBytes, String fileName, 
+    public <T> T uploadFile(String urlString, byte[] fileBytes, String fileName,
                             String fieldName, Class<T> responseClass, String authToken) throws IOException {
         HttpURLConnection connection = null;
         String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
         String LINE_FEED = "\r\n";
-        
+
         try {
             URL url = new URL(urlString);
             connection = (HttpURLConnection) url.openConnection();
@@ -238,59 +329,59 @@ public class HttpClient {
             connection.setReadTimeout(READ_TIMEOUT);
             connection.setDoOutput(true);
             connection.setDoInput(true);
-            
+
             // Headers para multipart/form-data
             connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
             connection.setRequestProperty("Accept", "application/json");
-            
+
             // Agregar token de autenticación
             if (authToken != null && !authToken.isEmpty()) {
                 connection.setRequestProperty("Authorization", authToken);
             }
-            
+
             // Escribir el cuerpo multipart
             OutputStream outputStream = connection.getOutputStream();
-            
+
             // Inicio del campo de archivo
             outputStream.write(("--" + boundary + LINE_FEED).getBytes());
-            outputStream.write(("Content-Disposition: form-data; name=\"" + fieldName + 
-                              "\"; filename=\"" + fileName + "\"" + LINE_FEED).getBytes());
+            outputStream.write(("Content-Disposition: form-data; name=\"" + fieldName +
+                    "\"; filename=\"" + fileName + "\"" + LINE_FEED).getBytes());
             outputStream.write(("Content-Type: image/*" + LINE_FEED).getBytes());
             outputStream.write(LINE_FEED.getBytes());
-            
+
             // Escribir bytes del archivo
             outputStream.write(fileBytes);
             outputStream.write(LINE_FEED.getBytes());
-            
+
             // Fin del multipart
             outputStream.write(("--" + boundary + "--" + LINE_FEED).getBytes());
             outputStream.flush();
             outputStream.close();
-            
+
             // Verificar código de respuesta
             int responseCode = connection.getResponseCode();
             if (responseCode < 200 || responseCode >= 300) {
                 String errorJson = readErrorResponse(connection);
                 throw new ApiException(responseCode, errorJson);
             }
-            
+
             // Leer la respuesta
             String jsonResponse = readResponse(connection);
-            
+
             // Parsear JSON a objeto
             return gson.fromJson(jsonResponse, responseClass);
-            
+
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
         }
     }
-    
+
     /**
      * Realiza una petición POST con multipart/form-data para mensajes de chat
      * Soporta envío de texto + archivo adjunto
-     * 
+     *
      * @param urlString URL del endpoint
      * @param chatId ID del chat
      * @param content Contenido del mensaje (puede ser null)
@@ -306,7 +397,7 @@ public class HttpClient {
                                               byte[] attachmentBytes, String attachmentFileName,
                                               Class<T> responseClass, String authToken) throws IOException {
         HttpURLConnection connection = null;
-        
+
         try {
             URL url = new URL(urlString);
             connection = (HttpURLConnection) url.openConnection();
@@ -315,22 +406,22 @@ public class HttpClient {
             connection.setReadTimeout(READ_TIMEOUT);
             connection.setDoOutput(true);
             connection.setDoInput(true);
-            
+
             // Configurar multipart
             String boundary = "Boundary-" + System.currentTimeMillis();
             connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
             connection.setRequestProperty("Accept", "application/json");
-            
+
             // Agregar token de autenticación
             if (authToken != null && !authToken.isEmpty()) {
                 connection.setRequestProperty("Authorization", authToken);
             }
-            
+
             String LINE_FEED = "\r\n";
-            
+
             // Escribir el cuerpo multipart
             OutputStream outputStream = connection.getOutputStream();
-            
+
             // Campo chat_id (requerido)
             if (chatId != null && !chatId.isEmpty()) {
                 outputStream.write(("--" + boundary + LINE_FEED).getBytes());
@@ -338,7 +429,7 @@ public class HttpClient {
                 outputStream.write(LINE_FEED.getBytes());
                 outputStream.write((chatId + LINE_FEED).getBytes());
             }
-            
+
             // Campo content (opcional)
             if (content != null && !content.isEmpty()) {
                 outputStream.write(("--" + boundary + LINE_FEED).getBytes());
@@ -346,7 +437,7 @@ public class HttpClient {
                 outputStream.write(LINE_FEED.getBytes());
                 outputStream.write((content + LINE_FEED).getBytes());
             }
-            
+
             // Campo attachment (opcional)
             if (attachmentBytes != null && attachmentBytes.length > 0 && attachmentFileName != null && !attachmentFileName.isEmpty()) {
                 outputStream.write(("--" + boundary + LINE_FEED).getBytes());
@@ -356,38 +447,53 @@ public class HttpClient {
                 outputStream.write(attachmentBytes);
                 outputStream.write(LINE_FEED.getBytes());
             }
-            
+
             // Fin del multipart
             outputStream.write(("--" + boundary + "--" + LINE_FEED).getBytes());
             outputStream.flush();
             outputStream.close();
-            
+
             // Verificar código de respuesta
             int responseCode = connection.getResponseCode();
             if (responseCode < 200 || responseCode >= 300) {
                 String errorJson = readErrorResponse(connection);
                 throw new ApiException(responseCode, errorJson);
             }
-            
+
             // Leer la respuesta
             String jsonResponse = readResponse(connection);
-            
+
             // Parsear JSON a objeto
             return gson.fromJson(jsonResponse, responseClass);
-            
+
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
         }
     }
-    
+
     /**
      * Obtiene la instancia de GSON utilizada por el cliente
      * Útil para parsear manualmente si es necesario
      */
     public Gson getGson() {
         return gson;
+    }
+
+    /**
+     * Clase auxiliar para representar datos de archivo en multipart/form-data
+     */
+    public static class FileData {
+        public final byte[] data;
+        public final String fileName;
+        public final String mimeType;
+
+        public FileData(byte[] data, String fileName, String mimeType) {
+            this.data = data;
+            this.fileName = fileName;
+            this.mimeType = mimeType;
+        }
     }
 }
 

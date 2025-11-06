@@ -47,6 +47,9 @@ dependencies {
     // Gson for JSON parsing
     implementation("com.google.code.gson:gson:2.10.1")
     
+    // WorkManager for background tasks
+    implementation("androidx.work:work-runtime:2.9.0")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

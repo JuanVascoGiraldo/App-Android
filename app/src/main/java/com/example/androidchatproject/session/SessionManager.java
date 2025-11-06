@@ -14,6 +14,7 @@ public class SessionManager {
     private String memoryToken;  // For non-persistent sessions
     private String memoryExpirationDate;
     private String memoryUsername;  // For offline mode
+    private String memoryUserId;  // For offline mode
     
     public SessionManager(Context context) {
         this.databaseHelper = new DatabaseHelper(context);
@@ -93,21 +94,52 @@ public class SessionManager {
         databaseHelper.clearToken();
         memoryToken = null;
         memoryExpirationDate = null;
+        memoryUsername = null;
+        memoryUserId = null;
     }
     
     /**
-     * Save username for offline mode
+     * Save username (both database and memory)
      */
     public void saveUsername(String username) {
         this.memoryUsername = username;
-        android.util.Log.d("SessionManager", "Username saved: " + username);
+        databaseHelper.saveUsername(username);
+        android.util.Log.d("SessionManager", "Username saved to DB and memory: " + username);
     }
     
     /**
-     * Get username for offline mode
+     * Get username (from database or memory)
      */
     public String getUsername() {
+        // First check memory
+        if (memoryUsername != null) {
+            return memoryUsername;
+        }
+        // Then check database
+        memoryUsername = databaseHelper.getUsername();
         return memoryUsername;
+    }
+    
+    /**
+     * Save user ID (both database and memory)
+     */
+    public void saveUserId(String userId) {
+        this.memoryUserId = userId;
+        databaseHelper.saveUserId(userId);
+        android.util.Log.d("SessionManager", "UserId saved to DB and memory: " + userId);
+    }
+    
+    /**
+     * Get user ID (from database or memory)
+     */
+    public String getUserId() {
+        // First check memory
+        if (memoryUserId != null) {
+            return memoryUserId;
+        }
+        // Then check database
+        memoryUserId = databaseHelper.getUserId();
+        return memoryUserId;
     }
     
     /**

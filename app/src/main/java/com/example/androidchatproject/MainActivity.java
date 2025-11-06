@@ -1,6 +1,7 @@
 package com.example.androidchatproject;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -27,6 +28,8 @@ import androidx.core.view.WindowInsetsCompat;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.widget.ListView;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 
 import com.example.androidchatproject.adapter.ChatsAdapter;
 import com.example.androidchatproject.database.ChatsCacheHelper;
@@ -40,10 +43,19 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import androidx.work.Constraints;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.NetworkType;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
+
+import com.example.androidchatproject.workers.MessagePollingWorker;
+
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * MainActivity - Pantalla principal después del login
@@ -78,6 +90,12 @@ public class MainActivity extends AppCompatActivity {
     
     // Permission launcher
     private ActivityResultLauncher<String> requestPermissionLauncher;
+    
+    // Notification permission launcher
+    private ActivityResultLauncher<String> notificationPermissionLauncher;
+    
+    // Broadcast receiver para actualizar chats cuando hay mensajes nuevos
+    private BroadcastReceiver chatsUpdateReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -144,12 +162,14 @@ public class MainActivity extends AppCompatActivity {
         // Setup chats click listener
         chatsListView.setOnItemClickListener((parent, view, position, id) -> {
             ChatItem chat = chatsAdapter.getItem(position);
-            Toast.makeText(this, "Chat con: " + chat.getUsername(), Toast.LENGTH_SHORT).show();
-            // TODO: Navegar a pantalla de chat detallado
+            openChatDetail(chat);
         });
         
         // Setup image picker
         setupImagePicker();
+        
+        // Setup notification permission launcher
+        setupNotificationPermissionLauncher();
         
         // Setup upload button - verificar permisos primero
         uploadImageButton.setOnClickListener(v -> checkPermissionAndOpenPicker());
@@ -177,6 +197,12 @@ public class MainActivity extends AppCompatActivity {
             
             // Cargar lista de chats desde API
             loadChats();
+            
+            // Registrar broadcast receiver para actualizaciones
+            registerChatsUpdateReceiver();
+            
+            // Iniciar polling de mensajes en segundo plano
+            startMessagePolling();
         } else {
             Log.w(TAG, "Sin conexión - Modo offline");
             isOfflineMode = true;
@@ -185,6 +211,99 @@ public class MainActivity extends AppCompatActivity {
             // Cargar datos desde caché
             loadOfflineData();
         }
+    }
+    
+    /**
+     * Registrar BroadcastReceiver para escuchar actualizaciones de chats
+     */
+    private void registerChatsUpdateReceiver() {
+        chatsUpdateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                Log.d(TAG, "Broadcast received: " + action);
+                
+                if (com.example.androidchatproject.service.MessagePollingService.ACTION_CHATS_UPDATED.equals(action)) {
+                    // Actualizar lista de chats
+                    Log.d(TAG, "Reloading chats due to update...");
+                    loadChats();
+                } else if (com.example.androidchatproject.service.MessagePollingService.ACTION_NEW_MESSAGES.equals(action)) {
+                    int count = intent.getIntExtra("new_messages_count", 0);
+                    Log.d(TAG, "New messages detected: " + count);
+                    // Opcional: Mostrar badge o indicador visual
+                }
+            }
+        };
+        
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(com.example.androidchatproject.service.MessagePollingService.ACTION_CHATS_UPDATED);
+        filter.addAction(com.example.androidchatproject.service.MessagePollingService.ACTION_NEW_MESSAGES);
+        
+        registerReceiver(chatsUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        Log.d(TAG, "ChatsUpdateReceiver registered");
+    }
+    
+    /**
+     * Configurar el launcher para solicitar permisos de notificación
+     */
+    private void setupNotificationPermissionLauncher() {
+        notificationPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    Log.d(TAG, "Notification permission granted");
+                    Toast.makeText(this, "Notificaciones activadas", Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.d(TAG, "Notification permission denied");
+                    Toast.makeText(this, "Las notificaciones están desactivadas. Puedes activarlas en Configuración.", Toast.LENGTH_LONG).show();
+                }
+            }
+        );
+        
+        // Solicitar permiso si es Android 13+ y no está otorgado
+        requestNotificationPermissionIfNeeded();
+    }
+    
+    /**
+     * Solicitar permiso de notificaciones si es necesario (Android 13+)
+     */
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting notification permission...");
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            } else {
+                Log.d(TAG, "Notification permission already granted");
+            }
+        } else {
+            Log.d(TAG, "Notification permission not required for this Android version");
+        }
+    }
+    
+    /**
+     * Iniciar el polling periódico de mensajes nuevos cada 30 segundos
+     */
+    private void startMessagePolling() {
+        // Iniciar el servicio de polling
+        Intent serviceIntent = new Intent(this, com.example.androidchatproject.service.MessagePollingService.class);
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+        
+        Log.d(TAG, "Message polling service started (every 30 seconds)");
+    }
+    
+    /**
+     * Detener el servicio de polling
+     */
+    private void stopMessagePolling() {
+        Intent serviceIntent = new Intent(this, com.example.androidchatproject.service.MessagePollingService.class);
+        stopService(serviceIntent);
+        Log.d(TAG, "Message polling service stopped");
     }
     
     /**
@@ -243,8 +362,11 @@ public class MainActivity extends AppCompatActivity {
                 String welcomeMessage = "Hola, " + response.getUsername();
                 welcomeTextView.setText(welcomeMessage);
                 
-                // Guardar username para modo offline
+                // Guardar username y userId para modo offline
                 sessionManager.saveUsername(response.getUsername());
+                String userId = response.getId();
+                Log.d(TAG, "Saving userId: " + userId);
+                sessionManager.saveUserId(userId);
                 
                 Toast.makeText(MainActivity.this, 
                         "Bienvenido, " + response.getUsername() + "!", 
@@ -869,6 +991,9 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(LogoutResponse response) {
                 Log.d(TAG, "✅ Logout exitoso en el servidor");
                 
+                // Detener servicio de polling
+                stopMessagePolling();
+                
                 // Limpiar sesión local
                 sessionManager.clearSession();
                 
@@ -881,6 +1006,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(Exception error) {
                 Log.e(TAG, "❌ Error al cerrar sesión en el servidor", error);
+                
+                // Detener servicio de polling
+                stopMessagePolling();
                 
                 // Aunque falle el API, limpiar sesión local de todos modos
                 sessionManager.clearSession();
@@ -964,11 +1092,35 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
     
+    /**
+     * Abrir pantalla de chat detallado
+     */
+    private void openChatDetail(ChatItem chat) {
+        Intent intent = new Intent(MainActivity.this, ChatDetailActivity.class);
+        intent.putExtra("chat_id", chat.getId());
+        intent.putExtra("user_id", chat.getUser());
+        intent.putExtra("username", chat.getUsername());
+        intent.putExtra("profile_img", chat.getProfileImg());
+        startActivity(intent);
+    }
+    
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        
+        // Limpiar adapter
         if (chatsAdapter != null) {
             chatsAdapter.cleanup();
+        }
+        
+        // Desregistrar broadcast receiver
+        if (chatsUpdateReceiver != null) {
+            try {
+                unregisterReceiver(chatsUpdateReceiver);
+                Log.d(TAG, "ChatsUpdateReceiver unregistered");
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "Receiver not registered or already unregistered");
+            }
         }
     }
 }

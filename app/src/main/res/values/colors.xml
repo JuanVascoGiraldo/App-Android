@@ -57,4 +57,18 @@
     <!-- Transparencias -->
     <color name="overlay">#80000000</color>
     <color name="divider">#E5E7EB</color>
+    
+    <!-- Material Design 3 Colors -->
+    <color name="md_theme_primary">@color/primary</color>
+    <color name="md_theme_onPrimary">@color/text_on_primary</color>
+    <color name="md_theme_primaryContainer">#E8E5FF</color>
+    <color name="md_theme_onPrimaryContainer">@color/text_primary</color>
+    <color name="md_theme_surface">@color/surface</color>
+    <color name="md_theme_surfaceVariant">#F5F7FA</color>
+    <color name="md_theme_onSurfaceVariant">@color/text_secondary</color>
+    <color name="md_theme_background">@color/background</color>
+    <color name="md_theme_error">@color/error</color>
+    <color name="md_theme_errorContainer">#FFEDEA</color>
+    <color name="md_theme_onErrorContainer">#8B0000</color>
+    <color name="md_theme_outline">@color/input_border</color>
 </resources>

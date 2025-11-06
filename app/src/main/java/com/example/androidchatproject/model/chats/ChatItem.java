@@ -22,6 +22,9 @@ public class ChatItem {
     @SerializedName("last_message")
     private String lastMessage;
     
+    @SerializedName("last_message_id")
+    private String lastMessageId;
+    
     @SerializedName("last_message_time")
     private String lastMessageTime;
     
@@ -37,12 +40,13 @@ public class ChatItem {
     
     // Constructor completo
     public ChatItem(String id, String user, String username, String profileImg, 
-                    String lastMessage, String lastMessageTime, String createdAt, String updatedAt) {
+                    String lastMessage, String lastMessageId, String lastMessageTime, String createdAt, String updatedAt) {
         this.id = id;
         this.user = user;
         this.username = username;
         this.profileImg = profileImg;
         this.lastMessage = lastMessage;
+        this.lastMessageId = lastMessageId;
         this.lastMessageTime = lastMessageTime;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -67,6 +71,10 @@ public class ChatItem {
     
     public String getLastMessage() {
         return lastMessage;
+    }
+    
+    public String getLastMessageId() {
+        return lastMessageId;
     }
     
     public String getLastMessageTime() {
@@ -102,6 +110,10 @@ public class ChatItem {
         this.lastMessage = lastMessage;
     }
     
+    public void setLastMessageId(String lastMessageId) {
+        this.lastMessageId = lastMessageId;
+    }
+    
     public void setLastMessageTime(String lastMessageTime) {
         this.lastMessageTime = lastMessageTime;
     }
@@ -122,6 +134,7 @@ public class ChatItem {
                 ", username='" + username + '\'' +
                 ", profileImg='" + profileImg + '\'' +
                 ", lastMessage='" + lastMessage + '\'' +
+                ", lastMessageId='" + lastMessageId + '\'' +
                 ", lastMessageTime='" + lastMessageTime + '\'' +
                 ", createdAt='" + createdAt + '\'' +
                 ", updatedAt='" + updatedAt + '\'' +

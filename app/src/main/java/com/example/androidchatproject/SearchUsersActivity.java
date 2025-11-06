@@ -15,7 +15,9 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.androidchatproject.adapter.UsersAdapter;
+import com.example.androidchatproject.database.ChatsCacheHelper;
 import com.example.androidchatproject.database.UsersCacheHelper;
+import com.example.androidchatproject.model.chats.ChatItem;
 import com.example.androidchatproject.model.user.LogoutResponse;
 import com.example.androidchatproject.model.user.UserListItem;
 import com.example.androidchatproject.model.user.UsersListResponse;
@@ -45,6 +47,7 @@ public class SearchUsersActivity extends AppCompatActivity {
     private UsersAdapter adapter;
     private List<UserListItem> allUsers;
     private UsersCacheHelper cacheHelper;
+    private ChatsCacheHelper chatsCacheHelper;
     private SessionManager sessionManager;
     private ApiHttpClientUser apiHttpClient;
     private String currentToken;
@@ -59,6 +62,7 @@ public class SearchUsersActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         apiHttpClient = new ApiHttpClientUser(this);
         cacheHelper = new UsersCacheHelper(this);
+        chatsCacheHelper = new ChatsCacheHelper(this);
         
         // Get token
         currentToken = sessionManager.getToken();
@@ -109,8 +113,7 @@ public class SearchUsersActivity extends AppCompatActivity {
         // Click en usuario
         usersListView.setOnItemClickListener((parent, view, position, id) -> {
             UserListItem user = adapter.getItem(position);
-            Toast.makeText(this, "Seleccionado: " + user.getUsername(), Toast.LENGTH_SHORT).show();
-            // TODO: Navegar a chat o perfil
+            handleUserSelected(user);
         });
     }
     
@@ -274,6 +277,54 @@ public class SearchUsersActivity extends AppCompatActivity {
                 navigateToLogin();
             }
         });
+    }
+    
+    /**
+     * Manejar selección de usuario
+     * 1. Verificar si ya existe un chat en SQLite
+     * 2. Si existe -> Abrir el chat
+     * 3. Si no existe -> Abrir diálogo para iniciar conversación
+     */
+    private void handleUserSelected(UserListItem user) {
+        Log.d(TAG, "User selected: " + user.getUsername() + " (ID: " + user.getUserId() + ")");
+        
+        // Buscar si ya existe un chat con este usuario en SQLite
+        ChatItem existingChat = chatsCacheHelper.findChatByUserId(user.getUserId());
+        
+        if (existingChat != null) {
+            // Ya existe un chat, abrir directamente
+            Log.d(TAG, "Chat found in cache, opening chat detail");
+            openChatDetail(existingChat, user);
+        } else {
+            // No existe chat, iniciar nueva conversación
+            Log.d(TAG, "No chat found, starting new conversation");
+            startNewConversation(user);
+        }
+    }
+    
+    /**
+     * Abrir chat existente
+     */
+    private void openChatDetail(ChatItem chat, UserListItem user) {
+        Intent intent = new Intent(this, ChatDetailActivity.class);
+        intent.putExtra("chat_id", chat.getId());
+        intent.putExtra("user_id", user.getUserId());
+        intent.putExtra("username", user.getUsername());
+        intent.putExtra("profile_img", user.getProfileImageUrl());
+        startActivity(intent);
+    }
+    
+    /**
+     * Iniciar nueva conversación
+     * Mostrar diálogo con campo de texto para el primer mensaje
+     */
+    private void startNewConversation(UserListItem user) {
+        // Crear intent para StartConversationActivity
+        Intent intent = new Intent(this, StartConversationActivity.class);
+        intent.putExtra("user_id", user.getUserId());
+        intent.putExtra("username", user.getUsername());
+        intent.putExtra("profile_img", user.getProfileImageUrl());
+        startActivity(intent);
     }
     
     /**

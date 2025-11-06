@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class DatabaseHelper extends SQLiteOpenHelper {
     
     private static final String DATABASE_NAME = "ChatApp.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2; // Incrementado para agregar nuevas columnas
     
     // Table name
     private static final String TABLE_SESSION = "session";
@@ -18,6 +18,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_TOKEN = "token";
     private static final String COLUMN_EXPIRATION_DATE = "expiration_date";
+    private static final String COLUMN_USER_ID = "user_id";
+    private static final String COLUMN_USERNAME = "username";
     private static final String COLUMN_CREATED_AT = "created_at";
     
     // Create table query
@@ -26,6 +28,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
         COLUMN_TOKEN + " TEXT NOT NULL, " +
         COLUMN_EXPIRATION_DATE + " TEXT, " +
+        COLUMN_USER_ID + " TEXT, " +
+        COLUMN_USERNAME + " TEXT, " +
         COLUMN_CREATED_AT + " DATETIME DEFAULT CURRENT_TIMESTAMP" +
         ")";
     
@@ -117,6 +121,88 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void clearToken() {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_SESSION, null, null);
+    }
+    
+    /**
+     * Save userId to database
+     */
+    public boolean saveUserId(String userId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_USER_ID, userId);
+        
+        int rowsUpdated = db.update(TABLE_SESSION, values, null, null);
+        return rowsUpdated > 0;
+    }
+    
+    /**
+     * Get saved userId from database
+     */
+    public String getUserId() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        String userId = null;
+        
+        try {
+            String query = "SELECT " + COLUMN_USER_ID + " FROM " + TABLE_SESSION + 
+                          " ORDER BY " + COLUMN_ID + " DESC LIMIT 1";
+            cursor = db.rawQuery(query, null);
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndex(COLUMN_USER_ID);
+                if (columnIndex != -1) {
+                    userId = cursor.getString(columnIndex);
+                }
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        
+        return userId;
+    }
+    
+    /**
+     * Save username to database
+     */
+    public boolean saveUsername(String username) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_USERNAME, username);
+        
+        int rowsUpdated = db.update(TABLE_SESSION, values, null, null);
+        return rowsUpdated > 0;
+    }
+    
+    /**
+     * Get saved username from database
+     */
+    public String getUsername() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        String username = null;
+        
+        try {
+            String query = "SELECT " + COLUMN_USERNAME + " FROM " + TABLE_SESSION + 
+                          " ORDER BY " + COLUMN_ID + " DESC LIMIT 1";
+            cursor = db.rawQuery(query, null);
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndex(COLUMN_USERNAME);
+                if (columnIndex != -1) {
+                    username = cursor.getString(columnIndex);
+                }
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        
+        return username;
     }
     
     /**
