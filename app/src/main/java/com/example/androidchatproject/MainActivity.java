@@ -1105,6 +1105,19 @@ public class MainActivity extends AppCompatActivity {
     }
     
     @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Actualizar lista de chats cada vez que se vuelve a la actividad
+        if (!isOfflineMode && currentToken != null) {
+            Log.d(TAG, "MainActivity resumed - Refreshing chat list");
+            loadChats();
+        } else {
+            Log.d(TAG, "MainActivity resumed - Offline mode or no token");
+        }
+    }
+    
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         

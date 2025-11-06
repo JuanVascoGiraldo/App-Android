@@ -86,7 +86,7 @@ public class ChatDetailActivity extends AppCompatActivity {
     // Auto-refresh messages
     private Handler refreshHandler;
     private Runnable refreshRunnable;
-    private static final long REFRESH_INTERVAL = 30000; // 30 segundos
+    private static final long REFRESH_INTERVAL = 5000; // 5 segundos
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
